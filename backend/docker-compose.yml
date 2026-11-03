@@ -1,0 +1,17 @@
+﻿services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: compras-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_DB: compras_residenciais
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./migrations/001_initial_schema.sql:/docker-entrypoint-initdb.d/001_initial_schema.sql
+
+volumes:
+  pgdata:

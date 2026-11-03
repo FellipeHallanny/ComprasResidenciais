@@ -1,0 +1,215 @@
+﻿{
+  "info": {
+    "_postman_id": "compras-residenciais-api-collection",
+    "name": "Compras Residenciais API",
+    "description": "Collection do Postman com exemplos para a API de Controle de Compras Residenciais.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Usuários (Moradores)",
+      "item": [
+        {
+          "name": "Criar Usuário Padrão",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Fellipe\",\n  \"email\": \"fellipe@residencia.local\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users"
+              ]
+            },
+            "description": "Cria um morador/usuário padrão responsável pelas compras da residência."
+          },
+          "response": [
+            {
+              "name": "Exemplo Sucesso (201 Created)",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Fellipe\",\n  \"email\": \"fellipe@residencia.local\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/users",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "users"
+                  ]
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"id\": \"a429fa27-aa23-4abf-a525-fac9fe38c095\",\n  \"name\": \"Fellipe\",\n  \"email\": \"fellipe@residencia.local\",\n  \"is_blocked\": false,\n  \"created_at\": \"2026-11-02T16:54:48.1035641-03:00\",\n  \"updated_at\": \"2026-11-02T16:54:48.1035641-03:00\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Listar Usuários",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users"
+              ]
+            },
+            "description": "Lista todos os moradores cadastrados na residência."
+          },
+          "response": []
+        },
+        {
+          "name": "Deletar / Bloquear Usuário",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "a429fa27-aa23-4abf-a525-fac9fe38c095",
+                  "description": "ID UUID do usuário a ser verificado para deleção ou bloqueio"
+                }
+              ]
+            },
+            "description": "Remove ou bloqueia um usuário: se possuir compras vinculadas, é bloqueado para manter o histórico (action: BLOCKED). Se não possuir compras, é deletado permanentemente (action: DELETED)."
+          },
+          "response": [
+            {
+              "name": "Exemplo Sem Compras (200 DELETED)",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/users/a429fa27-aa23-4abf-a525-fac9fe38c095",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "users",
+                    "a429fa27-aa23-4abf-a525-fac9fe38c095"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"action\": \"DELETED\",\n  \"message\": \"Usuário 'Fellipe' não possuía compras vinculadas e foi deletado permanentemente com sucesso.\",\n  \"user_id\": \"a429fa27-aa23-4abf-a525-fac9fe38c095\"\n}"
+            },
+            {
+              "name": "Exemplo Com Compras (200 BLOCKED)",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/users/a429fa27-aa23-4abf-a525-fac9fe38c095",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "users",
+                    "a429fa27-aa23-4abf-a525-fac9fe38c095"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"action\": \"BLOCKED\",\n  \"message\": \"Usuário 'Fellipe' possui 2 compra(s) associada(s). O usuário foi bloqueado para preservar o histórico financeiro.\",\n  \"user_id\": \"a429fa27-aa23-4abf-a525-fac9fe38c095\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/health",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "health"
+          ]
+        }
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    }
+  ]
+}
