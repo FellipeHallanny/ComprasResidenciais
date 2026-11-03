@@ -24,6 +24,25 @@ type GeminiAdapter struct {
 	httpClient *http.Client
 }
 
+func normalizeReceiptMIME(mimeType string) (string, error) {
+	mimeType = strings.ToLower(strings.TrimSpace(mimeType))
+	if mimeType == "" {
+		return "image/jpeg", nil
+	}
+
+	switch mimeType {
+	case "application/pdf",
+		"image/jpeg",
+		"image/png",
+		"image/webp",
+		"image/heic",
+		"image/heif":
+		return mimeType, nil
+	default:
+		return "", fmt.Errorf("unsupported receipt MIME type: %s", mimeType)
+	}
+}
+
 // NewGeminiAdapter inicializa o cliente Gemini usando a chave de API fornecida
 func NewGeminiAdapter(ctx context.Context, apiKey string) (*GeminiAdapter, error) {
 	if apiKey == "" {
@@ -96,8 +115,12 @@ func (a *GeminiAdapter) GenerateEmbedding(ctx context.Context, text string) (pgv
 
 // ParseReceipt envia a imagem ou PDF do cupom fiscal para o Gemini extrair os dados estruturados
 func (a *GeminiAdapter) ParseReceipt(ctx context.Context, fileBytes []byte, mimeType string) (*ports.ParsedReceipt, error) {
-	model := a.client.GenerativeModel("gemini-2.0-flash")
+	// 1. Atualizado para o modelo suportado
+	model := a.client.GenerativeModel("gemini-3.8-flash")
 	model.SetTemperature(0.1)
+
+	// 2. Força a API a responder diretamente em JSON válido
+	model.ResponseMIMEType = "application/json"
 
 	prompt := `
 Você é um especialista em extração de dados fiscais de cupons e notas fiscais de supermercado brasileiras (NFC-e / Cupom SAT).
@@ -122,18 +145,21 @@ Analise a imagem/documento e extraia rigorosamente as informações no formato J
 
 Regras:
 1. Para cada item, identifique o tamanho da embalagem e unidade:
-   - Se comprou "ARROZ TIO JOAO 5KG", package_size: 5.0, package_unit: "kg", quantity: 1.0.
-   - Se comprou "5 pct de ARROZ 1KG", package_size: 1.0, package_unit: "kg", quantity: 5.0.
-   - Unidades permitidas para package_unit: "kg", "g", "L", "ml", "un".
+- Se comprou "ARROZ TIO JOAO 5KG", package_size: 5.0, package_unit: "kg", quantity: 1.0.
+- Se comprou "5 pct de ARROZ 1KG", package_size: 1.0, package_unit: "kg", quantity: 5.0.
+- Unidades permitidas para package_unit: "kg", "g", "L", "ml", "un".
 2. Se a data não estiver legível, retorne a data atual em ISO 8601.
-3. Responda APENAS com o JSON puro, sem blocos markdown (sem triple backticks).
 `
 
-	if mimeType == "" {
-		mimeType = "image/jpeg"
+	mimeType, err := normalizeReceiptMIME(mimeType)
+	if err != nil {
+		return nil, err
 	}
 
-	partData := genai.ImageData(mimeType, fileBytes)
+	partData := genai.Blob{
+		MIMEType: mimeType,
+		Data:     fileBytes,
+	}
 	resp, err := model.GenerateContent(ctx, partData, genai.Text(prompt))
 	if err != nil {
 		return nil, fmt.Errorf("gemini vision error: %w", err)
