@@ -7,8 +7,28 @@
   MonthlyPriceOscillation,
   GlobalSummaryView
 } from '../types';
+import { auth } from './auth.svelte';
 
 const API_BASE = '/api/v1';
+
+async function authFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  const headers = new Headers(init?.headers || {});
+  if (auth.token) {
+    headers.set('Authorization', `Bearer ${auth.token}`);
+  }
+
+  const res = await fetch(input, {
+    ...init,
+    headers,
+  });
+
+  if (res.status === 401) {
+    // Se o token expirou ou usuário foi bloqueado, desconecta
+    auth.logout();
+  }
+
+  return res;
+}
 
 async function handleResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
@@ -29,27 +49,63 @@ async function handleResponse<T>(res: Response): Promise<T> {
 export const api = {
   // Health
   checkHealth: async () => {
-    const res = await fetch(`${API_BASE}/health`);
+    const res = await authFetch(`${API_BASE}/health`);
     return handleResponse<{ status: string; timestamp: string }>(res);
+  },
+
+  // Auth
+  getMe: async (): Promise<User> => {
+    const res = await authFetch(`${API_BASE}/auth/me`);
+    return handleResponse<User>(res);
   },
 
   // Users
   getUsers: async (): Promise<User[]> => {
-    const res = await fetch(`${API_BASE}/users`);
-    return handleResponse<User[]>(res);
+    const res = await authFetch(`${API_BASE}/users`);
+    const data = await handleResponse<User[]>(res);
+    return Array.isArray(data) ? data : [];
   },
 
-  createUser: async (name: string, email?: string): Promise<User> => {
-    const res = await fetch(`${API_BASE}/users`, {
+  createUser: async (name: string, email?: string, password?: string, role?: string): Promise<User> => {
+    const res = await authFetch(`${API_BASE}/users`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, email: email || '' }),
+      body: JSON.stringify({
+        name,
+        email: email || '',
+        password: password || '',
+        role: role || 'MEMBER',
+      }),
+    });
+    return handleResponse<User>(res);
+  },
+
+  updateUser: async (
+    id: string,
+    data: {
+      name: string;
+      email?: string;
+      role?: string;
+      is_blocked?: boolean;
+      new_password?: string;
+    }
+  ): Promise<User> => {
+    const res = await authFetch(`${API_BASE}/users/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: data.name,
+        email: data.email || '',
+        role: data.role,
+        is_blocked: !!data.is_blocked,
+        new_password: data.new_password,
+      }),
     });
     return handleResponse<User>(res);
   },
 
   deleteUser: async (id: string): Promise<{ action: string; message: string; user_id: string }> => {
-    const res = await fetch(`${API_BASE}/users/${id}`, {
+    const res = await authFetch(`${API_BASE}/users/${id}`, {
       method: 'DELETE',
     });
     return handleResponse<{ action: string; message: string; user_id: string }>(res);
@@ -57,34 +113,56 @@ export const api = {
 
   // Stores
   getStores: async (): Promise<Store[]> => {
-    const res = await fetch(`${API_BASE}/stores`);
-    return handleResponse<Store[]>(res);
+    const res = await authFetch(`${API_BASE}/stores`);
+    const data = await handleResponse<Store[]>(res);
+    return Array.isArray(data) ? data : [];
   },
 
-  createStore: async (name: string, cnpj?: string): Promise<Store> => {
-    const res = await fetch(`${API_BASE}/stores`, {
+  createStore: async (name: string, cnpj?: string, address?: string): Promise<Store> => {
+    const res = await authFetch(`${API_BASE}/stores`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, cnpj: cnpj || '' }),
+      body: JSON.stringify({ name, cnpj: cnpj || '', address: address || '' }),
     });
     return handleResponse<Store>(res);
   },
 
+  updateStore: async (id: string, data: { name: string; cnpj?: string; address?: string }): Promise<Store> => {
+    const res = await authFetch(`${API_BASE}/stores/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: data.name,
+        cnpj: data.cnpj || '',
+        address: data.address || '',
+      }),
+    });
+    return handleResponse<Store>(res);
+  },
+
+  deleteStore: async (id: string): Promise<{ message: string; id: string }> => {
+    const res = await authFetch(`${API_BASE}/stores/${id}`, {
+      method: 'DELETE',
+    });
+    return handleResponse<{ message: string; id: string }>(res);
+  },
+
   // Purchases
   getPurchases: async (limit = 50, offset = 0): Promise<Purchase[]> => {
-    const res = await fetch(`${API_BASE}/purchases?limit=${limit}&offset=${offset}`);
-    return handleResponse<Purchase[]>(res);
+    const res = await authFetch(`${API_BASE}/purchases?limit=${limit}&offset=${offset}`);
+    const data = await handleResponse<Purchase[]>(res);
+    return Array.isArray(data) ? data : [];
   },
 
   getPurchase: async (id: string): Promise<Purchase> => {
-    const res = await fetch(`${API_BASE}/purchases/${id}`);
+    const res = await authFetch(`${API_BASE}/purchases/${id}`);
     return handleResponse<Purchase>(res);
   },
 
   uploadReceipt: async (file: File): Promise<Purchase> => {
     const formData = new FormData();
     formData.append('file', file);
-    const res = await fetch(`${API_BASE}/purchases/upload`, {
+    const res = await authFetch(`${API_BASE}/purchases/upload`, {
       method: 'POST',
       body: formData,
     });
@@ -92,7 +170,7 @@ export const api = {
   },
 
   processFiscalKey: async (fiscalKey: string): Promise<Purchase> => {
-    const res = await fetch(`${API_BASE}/purchases/sefaz`, {
+    const res = await authFetch(`${API_BASE}/purchases/sefaz`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ fiscal_key: fiscalKey }),
@@ -101,7 +179,7 @@ export const api = {
   },
 
   createManualPurchase: async (purchase: Partial<Purchase>): Promise<Purchase> => {
-    const res = await fetch(`${API_BASE}/purchases/manual`, {
+    const res = await authFetch(`${API_BASE}/purchases/manual`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(purchase),
@@ -110,7 +188,7 @@ export const api = {
   },
 
   confirmPurchase: async (id: string, purchase: Partial<Purchase>): Promise<Purchase> => {
-    const res = await fetch(`${API_BASE}/purchases/${id}/confirm`, {
+    const res = await authFetch(`${API_BASE}/purchases/${id}/confirm`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(purchase),
@@ -120,22 +198,31 @@ export const api = {
 
   // Analytics
   searchProducts: async (query: string): Promise<CanonicalProduct[]> => {
-    const res = await fetch(`${API_BASE}/analytics/search-products?q=${encodeURIComponent(query)}`);
-    return handleResponse<CanonicalProduct[]>(res);
+    const res = await authFetch(`${API_BASE}/analytics/search-products?q=${encodeURIComponent(query)}`);
+    const data = await handleResponse<CanonicalProduct[]>(res);
+    return Array.isArray(data) ? data : [];
   },
 
   getPriceComparison: async (productId: string): Promise<PriceComparisonView> => {
-    const res = await fetch(`${API_BASE}/analytics/price-comparison/${productId}`);
+    const res = await authFetch(`${API_BASE}/analytics/price-comparison/${productId}`);
     return handleResponse<PriceComparisonView>(res);
   },
 
   getMonthlyOscillation: async (productId: string): Promise<MonthlyPriceOscillation> => {
-    const res = await fetch(`${API_BASE}/analytics/price-oscillation/${productId}`);
+    const res = await authFetch(`${API_BASE}/analytics/price-oscillation/${productId}`);
     return handleResponse<MonthlyPriceOscillation>(res);
   },
 
   getSummary: async (): Promise<GlobalSummaryView> => {
-    const res = await fetch(`${API_BASE}/analytics/summary`);
+    const res = await authFetch(`${API_BASE}/analytics/summary`);
     return handleResponse<GlobalSummaryView>(res);
+  },
+
+  // Admin / Reset
+  resetDatabase: async (): Promise<{ status: string; message: string }> => {
+    const res = await authFetch(`${API_BASE}/admin/reset-database`, {
+      method: 'POST',
+    });
+    return handleResponse<{ status: string; message: string }>(res);
   },
 };

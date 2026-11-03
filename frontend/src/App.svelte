@@ -10,8 +10,10 @@
     GlobalSummaryView
   } from './types';
   import { api } from './lib/api';
+  import { auth } from './lib/auth.svelte';
 
   import Header from './components/Header.svelte';
+  import LoginView from './components/LoginView.svelte';
   import GlobalSummary from './components/GlobalSummary.svelte';
   import ProductSearch from './components/ProductSearch.svelte';
   import OpportunityCard from './components/OpportunityCard.svelte';
@@ -21,12 +23,14 @@
   import PurchaseList from './components/PurchaseList.svelte';
   import HouseholdUsers from './components/HouseholdUsers.svelte';
   import StoresView from './components/StoresView.svelte';
+  import { Users, Store as StoreIcon, Sparkles, CheckCircle2 } from '@lucide/svelte';
 
   // Active view tab
   let activeTab = $state<'dashboard' | 'purchases' | 'household' | 'stores'>('dashboard');
 
   // Modal open state
   let isPurchaseModalOpen = $state(false);
+  let globalNotification = $state<string | null>(null);
 
   // Data states
   let summary = $state<GlobalSummaryView | null>(null);
@@ -60,9 +64,9 @@
       ]);
 
       summary = sumRes;
-      users = usersRes;
-      stores = storesRes;
-      purchases = purchasesRes;
+      users = Array.isArray(usersRes) ? usersRes : [];
+      stores = Array.isArray(storesRes) ? storesRes : [];
+      purchases = Array.isArray(purchasesRes) ? purchasesRes : [];
     } finally {
       loadingSummary = false;
       loadingUsers = false;
@@ -108,7 +112,8 @@
   async function refreshPurchases() {
     loadingPurchases = true;
     try {
-      purchases = await api.getPurchases(50);
+      const res = await api.getPurchases(50);
+      purchases = Array.isArray(res) ? res : [];
       summary = await api.getSummary().catch(() => null);
       if (selectedProduct) {
         handleProductSelect(selectedProduct);
@@ -123,7 +128,8 @@
   async function refreshUsers() {
     loadingUsers = true;
     try {
-      users = await api.getUsers();
+      const res = await api.getUsers();
+      users = Array.isArray(res) ? res : [];
     } catch (err) {
       console.error(err);
     } finally {
@@ -134,7 +140,8 @@
   async function refreshStores() {
     loadingStores = true;
     try {
-      stores = await api.getStores();
+      const res = await api.getStores();
+      stores = Array.isArray(res) ? res : [];
     } catch (err) {
       console.error(err);
     } finally {
@@ -148,98 +155,185 @@
     refreshStores();
   }
 
-  onMount(() => {
-    loadInitialData();
+  async function handleResetDatabase() {
+    if (!auth.isAdmin) {
+      alert('Apenas administradores podem zerar o banco de dados.');
+      return;
+    }
+
+    const confirmation = confirm(
+      '⚠️ ATENÇÃO: Deseja realmente zerar todo o banco de dados?\n\nIsso removerá permanentemente todas as compras, itens, moradores e lojas cadastradas, deixando o sistema completamente limpo.'
+    );
+    if (!confirmation) return;
+
+    try {
+      const res = await api.resetDatabase();
+      globalNotification = res.message || 'Banco de dados reiniciado do zero com sucesso!';
+      selectedProduct = null;
+      priceComparison = null;
+      priceOscillation = null;
+      auth.logout();
+      await auth.init();
+    } catch (err: any) {
+      alert(`Erro ao reiniciar banco: ${err.message}`);
+    }
+  }
+
+  onMount(async () => {
+    await auth.init();
+    if (auth.isAuthenticated) {
+      loadInitialData();
+    }
   });
 </script>
 
-<div class="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
-  <!-- Header / Navigation Bar -->
-  <Header
-    {activeTab}
-    onselectTab={(t) => (activeTab = t)}
-    onopenPurchaseModal={() => (isPurchaseModalOpen = true)}
-  />
+{#if auth.isLoading}
+  <div class="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4">
+    <div class="w-8 h-8 border-3 border-emerald-500 border-t-transparent rounded-full animate-spin mb-3"></div>
+    <p class="text-xs text-slate-400 font-medium">Carregando autenticação...</p>
+  </div>
+{:else if !auth.isAuthenticated}
+  <LoginView onsuccess={loadInitialData} />
+{:else}
+  <div class="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
+    <!-- Header / Navigation Bar -->
+    <Header
+      {activeTab}
+      onselectTab={(t) => (activeTab = t)}
+      onopenPurchaseModal={() => (isPurchaseModalOpen = true)}
+      onresetDatabase={handleResetDatabase}
+    />
 
-  <!-- Main Content Container -->
-  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    {#if activeTab === 'dashboard'}
-      <!-- KPIs Globais da Casa -->
-      <GlobalSummary {summary} loading={loadingSummary} />
+    <!-- Global Alert Notification -->
+    {#if globalNotification}
+      <div class="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 mt-4">
+        <div class="p-3.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <CheckCircle2 class="w-4 h-4 text-emerald-400" />
+            <span>{globalNotification}</span>
+          </div>
+          <button onclick={() => (globalNotification = null)} class="text-emerald-400 hover:text-emerald-200">
+            &times;
+          </button>
+        </div>
+      </div>
+    {/if}
 
-      <!-- Barra de Busca Semântica com pgvector -->
-      <ProductSearch
-        {selectedProduct}
-        onselect={handleProductSelect}
-      />
+    <!-- Main Content Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {#if activeTab === 'dashboard'}
+        <!-- Zero Data Welcome Banner -->
+        {#if !loadingUsers && !loadingStores && users.length === 0 && stores.length === 0}
+          <div class="mb-8 p-6 rounded-2xl bg-gradient-to-r from-slate-900 to-slate-800/90 border border-emerald-500/30 shadow-xl">
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div>
+                <div class="flex items-center gap-2 text-emerald-400 text-xs font-semibold uppercase tracking-wider mb-1">
+                  <Sparkles class="w-4 h-4" /> Banco de Dados Limpo & Pronto
+                </div>
+                <h3 class="text-xl font-bold text-white">Bem-vindo ao Compras Residenciais!</h3>
+                <p class="text-xs text-slate-300 max-w-xl mt-1">
+                  Seu banco de dados foi iniciado do zero. Para começar o acompanhamento de preços, cadastre os moradores e supermercados da casa.
+                </p>
+              </div>
+              <div class="flex flex-wrap items-center gap-2">
+                <button
+                  onclick={() => (activeTab = 'household')}
+                  class="px-4 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
+                >
+                  <Users class="w-3.5 h-3.5" />
+                  <span>1. Cadastrar Morador</span>
+                </button>
+                <button
+                  onclick={() => (activeTab = 'stores')}
+                  class="px-4 py-2 rounded-xl bg-purple-500/15 hover:bg-purple-500/25 border border-purple-500/30 text-purple-300 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
+                >
+                  <StoreIcon class="w-3.5 h-3.5" />
+                  <span>2. Cadastrar Loja</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        {/if}
 
-      <!-- Card de Oportunidade (Opção A) -->
-      <OpportunityCard
-        comparison={priceComparison}
-        loading={loadingProductDetails}
-      />
+        <!-- KPIs Globais da Casa -->
+        <GlobalSummary {summary} loading={loadingSummary} />
 
-      <!-- Gráfico de Oscilação Temporal no Mês -->
-      <PriceOscillationChart
-        oscillation={priceOscillation}
-        loading={loadingProductDetails}
-      />
+        <!-- Barra de Busca Semântica com pgvector -->
+        <ProductSearch
+          {selectedProduct}
+          onselect={handleProductSelect}
+        />
 
-      <!-- Tabela de Histórico de Compras do Produto Normalizado -->
-      {#if selectedProduct && priceComparison}
-        <ProductHistoryTable
-          purchases={priceComparison.recent_purchases}
-          baseUnit={selectedProduct.base_unit}
-          productName={selectedProduct.name}
+        <!-- Card de Oportunidade (Opção A) -->
+        <OpportunityCard
+          comparison={priceComparison}
+          loading={loadingProductDetails}
+        />
+
+        <!-- Gráfico de Oscilação Temporal no Mês -->
+        <PriceOscillationChart
+          oscillation={priceOscillation}
+          loading={loadingProductDetails}
+        />
+
+        <!-- Tabela de Histórico de Compras do Produto Normalizado -->
+        {#if selectedProduct && priceComparison}
+          <ProductHistoryTable
+            purchases={priceComparison.recent_purchases}
+            baseUnit={selectedProduct.base_unit}
+            productName={selectedProduct.name}
+          />
+        {/if}
+
+      {:else if activeTab === 'purchases'}
+        <!-- Lista Geral de Compras Registradas -->
+        <PurchaseList
+          {purchases}
+          {stores}
+          {users}
+          loading={loadingPurchases}
+          onrefresh={refreshPurchases}
+        />
+
+      {:else if activeTab === 'household'}
+        <!-- Gestão de Moradores -->
+        <HouseholdUsers
+          {users}
+          loading={loadingUsers}
+          onrefresh={refreshUsers}
+        />
+
+      {:else if activeTab === 'stores'}
+        <!-- Gestão de Estabelecimentos -->
+        <StoresView
+          {stores}
+          loading={loadingStores}
+          onrefresh={refreshStores}
         />
       {/if}
+    </main>
 
-    {:else if activeTab === 'purchases'}
-      <!-- Lista Geral de Compras Registradas -->
-      <PurchaseList
-        {purchases}
-        {stores}
+    <!-- Purchase Modal (Upload, SEFAZ, Manual e Conferência) -->
+    {#if isPurchaseModalOpen}
+      <PurchaseModal
         {users}
-        loading={loadingPurchases}
-        onrefresh={refreshPurchases}
-      />
-
-    {:else if activeTab === 'household'}
-      <!-- Gestão de Moradores -->
-      <HouseholdUsers
-        {users}
-        loading={loadingUsers}
-        onrefresh={refreshUsers}
-      />
-
-    {:else if activeTab === 'stores'}
-      <!-- Gestão de Estabelecimentos -->
-      <StoresView
         {stores}
-        loading={loadingStores}
-        onrefresh={refreshStores}
+        onclose={() => (isPurchaseModalOpen = false)}
+        onsuccess={handlePurchaseSuccess}
       />
     {/if}
-  </main>
 
-  <!-- Purchase Modal (Upload, SEFAZ, Manual e Conferência) -->
-  {#if isPurchaseModalOpen}
-    <PurchaseModal
-      {users}
-      {stores}
-      onclose={() => (isPurchaseModalOpen = false)}
-      onsuccess={handlePurchaseSuccess}
-    />
-  {/if}
-
-  <!-- Footer -->
-  <footer class="border-t border-slate-900 bg-slate-950/80 py-6 text-center text-xs text-slate-500">
-    <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-      <span>Controle e Inteligência de Compras Residenciais &bull; Svelte 5 &amp; Go Hexagonal</span>
-      <span class="flex items-center gap-1.5 text-slate-400">
-        <span class="w-2 h-2 rounded-full bg-emerald-400 inline-block animate-ping"></span>
-        PostgreSQL 16 com busca semântica pgvector
-      </span>
-    </div>
-  </footer>
-</div>
+    <!-- Footer -->
+    <footer class="border-t border-slate-900 bg-slate-950/80 py-6 text-center text-xs text-slate-500">
+      <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <span>Controle e Inteligência de Compras Residenciais &bull; Svelte 5 &amp; Go Hexagonal</span>
+        <div class="flex items-center gap-4">
+          <span class="flex items-center gap-1.5 text-slate-400">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 inline-block animate-ping"></span>
+            PostgreSQL 16 com pgvector
+          </span>
+        </div>
+      </div>
+    </footer>
+  </div>
+{/if}

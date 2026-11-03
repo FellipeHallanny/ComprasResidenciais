@@ -67,7 +67,7 @@ func main() {
 		sefaz,
 		embedder,
 	)
-	analyticsService := services.NewAnalyticsService(purchaseRepository, productRepository)
+	analyticsService := services.NewAnalyticsService(purchaseRepository, productRepository, embedder)
 	userService := services.NewUserService(userRepository)
 
 	// 5. Servidor MCP via STDIO

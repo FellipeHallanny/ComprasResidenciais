@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"ComprasResidenciais/internal/core/domain"
@@ -11,21 +12,25 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type analyticsService struct {
 	purchaseRepo ports.PurchaseRepository
 	productRepo  ports.CanonicalProductRepository
+	embedder     ports.EmbeddingProvider
 }
 
-// NewAnalyticsService cria instância do serviço de analytics
+// NewAnalyticsService cria instância do serviço de analytics com suporte a pgvector
 func NewAnalyticsService(
 	purchaseRepo ports.PurchaseRepository,
 	productRepo ports.CanonicalProductRepository,
+	embedder ports.EmbeddingProvider,
 ) ports.AnalyticsService {
 	return &analyticsService{
 		purchaseRepo: purchaseRepo,
 		productRepo:  productRepo,
+		embedder:     embedder,
 	}
 }
 
@@ -42,10 +47,27 @@ func (s *analyticsService) GetGlobalSummary(ctx context.Context, month time.Time
 }
 
 func (s *analyticsService) SearchProducts(ctx context.Context, query string) ([]domain.CanonicalProduct, error) {
-	return s.productRepo.SearchByName(ctx, query)
+	trimmed := strings.TrimSpace(query)
+	if trimmed == "" {
+		return s.productRepo.ListAll(ctx)
+	}
+
+	// 1. Tenta busca semântica vetorial via pgvector
+	if s.embedder != nil {
+		vec, err := s.embedder.GenerateEmbedding(ctx, trimmed)
+		if err == nil {
+			semanticList, err := s.productRepo.SearchSemantic(ctx, vec, 10)
+			if err == nil && len(semanticList) > 0 {
+				return semanticList, nil
+			}
+		}
+	}
+
+	// 2. Fallback para busca textual ILIKE
+	return s.productRepo.SearchByName(ctx, trimmed)
 }
 
-// --- User Service ---
+// --- UserService Implementation ---
 
 type userService struct {
 	userRepo ports.UserRepository
@@ -56,14 +78,28 @@ func NewUserService(userRepo ports.UserRepository) ports.UserService {
 	return &userService{userRepo: userRepo}
 }
 
-func (s *userService) CreateUser(ctx context.Context, name, email string) (*domain.User, error) {
+func (s *userService) CreateUser(ctx context.Context, name, email, password, role string) (*domain.User, error) {
+	if role == "" {
+		role = domain.UserRoleMember
+	}
+	var passwordHash string
+	if password != "" {
+		hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+		if err != nil {
+			return nil, fmt.Errorf("failed to hash password: %w", err)
+		}
+		passwordHash = string(hash)
+	}
+
 	user := &domain.User{
-		ID:        uuid.New(),
-		Name:      name,
-		Email:     email,
-		IsBlocked: false,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		ID:           uuid.New(),
+		Name:         name,
+		Email:        email,
+		PasswordHash: passwordHash,
+		Role:         role,
+		IsBlocked:    false,
+		CreatedAt:    time.Now(),
+		UpdatedAt:    time.Now(),
 	}
 	if err := s.userRepo.Create(ctx, user); err != nil {
 		return nil, err
@@ -73,6 +109,33 @@ func (s *userService) CreateUser(ctx context.Context, name, email string) (*doma
 
 func (s *userService) ListUsers(ctx context.Context) ([]domain.User, error) {
 	return s.userRepo.ListAll(ctx)
+}
+
+func (s *userService) UpdateUser(ctx context.Context, id uuid.UUID, name, email, role string, isBlocked bool, newPassword string) (*domain.User, error) {
+	user, err := s.userRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	user.Name = name
+	user.Email = email
+	if role != "" {
+		user.Role = role
+	}
+	user.IsBlocked = isBlocked
+	if newPassword != "" {
+		hash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+		if err != nil {
+			return nil, fmt.Errorf("failed to hash password: %w", err)
+		}
+		user.PasswordHash = string(hash)
+	}
+	user.UpdatedAt = time.Now()
+
+	if err := s.userRepo.Update(ctx, user); err != nil {
+		return nil, err
+	}
+	return user, nil
 }
 
 func (s *userService) DeleteUser(ctx context.Context, id uuid.UUID) (*ports.DeleteUserResult, error) {

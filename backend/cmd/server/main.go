@@ -49,7 +49,7 @@ func main() {
 		if err := pgRepo.RegisterPgvectorType(ctx, pool); err != nil {
 			log.Printf("Warning: Failed to register pgvector type: %v", err)
 		}
-		// Executa migrações automáticas incrementais
+		// Executa migrações automáticas incrementais / esquema inicial
 		if err := pgRepo.RunAutoMigrations(ctx, pool); err != nil {
 			log.Printf("Warning: Auto migrations failed: %v", err)
 		}
@@ -94,14 +94,15 @@ func main() {
 		sefaz,
 		embedder,
 	)
-	analyticsService := services.NewAnalyticsService(purchaseRepository, productRepository)
+	analyticsService := services.NewAnalyticsService(purchaseRepository, productRepository, embedder)
 	userService := services.NewUserService(userRepository)
+	authService := services.NewAuthService(userRepository, cfg.JWTSecret)
 
 	// 5. Adaptador HTTP Gin (Driving Adapter)
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.Default()
 
-	handler := httpHandler.NewHTTPHandler(purchaseService, analyticsService, userService, storeRepository)
+	handler := httpHandler.NewHTTPHandler(purchaseService, analyticsService, userService, authService, storeRepository, pool)
 	handler.RegisterRoutes(router)
 
 	srv := &http.Server{
@@ -111,24 +112,24 @@ func main() {
 		WriteTimeout: 60 * time.Second,
 	}
 
+	// Graceful shutdown em background
 	go func() {
-		log.Printf("Servidor HTTP REST ouvindo na porta %s (http://localhost:%s)", cfg.Port, cfg.Port)
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("listen: %s\n", err)
+		quit := make(chan os.Signal, 1)
+		signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
+		sig := <-quit
+		log.Printf("Encerrando servidor com segurança (sinal: %v)...\n", sig)
+
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer shutdownCancel()
+
+		if err := srv.Shutdown(shutdownCtx); err != nil {
+			log.Printf("Erro no encerramento: %v\n", err)
 		}
 	}()
 
-	// Graceful shutdown
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
-	log.Println("Encerrando servidor com segurança...")
-
-	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer shutdownCancel()
-
-	if err := srv.Shutdown(shutdownCtx); err != nil {
-		log.Fatal("Server forced to shutdown:", err)
+	log.Printf("Servidor HTTP REST ouvindo na porta %s (http://localhost:%s)", cfg.Port, cfg.Port)
+	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		log.Fatalf("listen: %s\n", err)
 	}
 	log.Println("Servidor finalizado com sucesso.")
 }

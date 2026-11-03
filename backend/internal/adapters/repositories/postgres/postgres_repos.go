@@ -36,19 +36,88 @@ func RegisterPgvectorType(ctx context.Context, pool *pgxpool.Pool) error {
 	return pgxvec.RegisterTypes(ctx, conn.Conn())
 }
 
-// RunAutoMigrations aplica migrações essenciais caso as colunas ou tabelas não existam
+// RunAutoMigrations aplica a criação do esquema completo e migrações caso o banco esteja vazio
 func RunAutoMigrations(ctx context.Context, pool *pgxpool.Pool) error {
 	migrations := []string{
+		`CREATE EXTENSION IF NOT EXISTS vector;`,
+		`CREATE EXTENSION IF NOT EXISTS "uuid-ossp";`,
+		`CREATE TABLE IF NOT EXISTS household_users (
+		    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+		    name VARCHAR(255) NOT NULL,
+		    email VARCHAR(255),
+		    is_blocked BOOLEAN NOT NULL DEFAULT FALSE,
+		    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+		    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+		);`,
+		`CREATE TABLE IF NOT EXISTS stores (
+		    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+		    name VARCHAR(255) NOT NULL,
+		    cnpj VARCHAR(30),
+		    address TEXT,
+		    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+		    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+		);`,
+		`CREATE TABLE IF NOT EXISTS canonical_products (
+		    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+		    name VARCHAR(255) NOT NULL,
+		    category VARCHAR(100) DEFAULT 'Geral',
+		    base_unit VARCHAR(20) NOT NULL,
+		    embedding vector(768),
+		    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+		    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+		);`,
+		`CREATE INDEX IF NOT EXISTS canonical_products_embedding_hnsw_idx 
+		ON canonical_products USING hnsw (embedding vector_cosine_ops);`,
+		`CREATE TABLE IF NOT EXISTS purchases (
+		    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+		    user_id UUID REFERENCES household_users(id) ON DELETE SET NULL,
+		    store_id UUID NOT NULL REFERENCES stores(id) ON DELETE RESTRICT,
+		    total_amount NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
+		    purchased_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		    status VARCHAR(50) NOT NULL DEFAULT 'DRAFT',
+		    origin VARCHAR(50) NOT NULL DEFAULT 'MANUAL',
+		    fiscal_key VARCHAR(100),
+		    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+		    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+		);`,
+		`CREATE INDEX IF NOT EXISTS purchases_purchased_at_idx ON purchases (purchased_at);`,
+		`CREATE INDEX IF NOT EXISTS purchases_status_idx ON purchases (status);`,
+		`CREATE TABLE IF NOT EXISTS purchase_items (
+		    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+		    purchase_id UUID NOT NULL REFERENCES purchases(id) ON DELETE CASCADE,
+		    raw_description VARCHAR(255) NOT NULL,
+		    quantity NUMERIC(10, 3) NOT NULL DEFAULT 1.0,
+		    package_size NUMERIC(10, 3) NOT NULL DEFAULT 1.0,
+		    package_unit VARCHAR(20) NOT NULL,
+		    total_units NUMERIC(10, 3) NOT NULL,
+		    total_price NUMERIC(12, 2) NOT NULL,
+		    unit_price NUMERIC(12, 2) NOT NULL,
+		    normalized_price NUMERIC(12, 4) NOT NULL,
+		    canonical_product_id UUID REFERENCES canonical_products(id) ON DELETE SET NULL,
+		    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+		);`,
+		`CREATE INDEX IF NOT EXISTS purchase_items_canonical_idx ON purchase_items (canonical_product_id);`,
+		`CREATE INDEX IF NOT EXISTS purchase_items_purchase_id_idx ON purchase_items (purchase_id);`,
 		`ALTER TABLE household_users ADD COLUMN IF NOT EXISTS is_blocked BOOLEAN NOT NULL DEFAULT FALSE;`,
+		`ALTER TABLE household_users ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255) NOT NULL DEFAULT '';`,
+		`ALTER TABLE household_users ADD COLUMN IF NOT EXISTS role VARCHAR(20) NOT NULL DEFAULT 'MEMBER';`,
+		`CREATE UNIQUE INDEX IF NOT EXISTS household_users_email_idx ON household_users (email) WHERE email IS NOT NULL AND email <> '';`,
 	}
 
 	for _, m := range migrations {
 		if _, err := pool.Exec(ctx, m); err != nil {
-			log.Printf("Warning: error running auto migration: %v", err)
+			log.Printf("Warning: error running migration statement: %v", err)
 			return err
 		}
 	}
 	return nil
+}
+
+// ResetDatabase limpa todas as tabelas reiniciando dados para um estado limpo
+func ResetDatabase(ctx context.Context, pool *pgxpool.Pool) error {
+	query := `TRUNCATE TABLE purchase_items, purchases, canonical_products, stores, household_users RESTART IDENTITY CASCADE;`
+	_, err := pool.Exec(ctx, query)
+	return err
 }
 
 // --- UserRepository Implementation ---
@@ -62,16 +131,29 @@ func NewUserRepository(pool *pgxpool.Pool) ports.UserRepository {
 }
 
 func (r *userRepo) Create(ctx context.Context, u *domain.User) error {
-	query := `INSERT INTO household_users (id, name, email, is_blocked, created_at, updated_at) 
-	          VALUES ($1, $2, $3, $4, $5, $6)`
-	_, err := r.pool.Exec(ctx, query, u.ID, u.Name, u.Email, u.IsBlocked, u.CreatedAt, u.UpdatedAt)
+	if u.Role == "" {
+		u.Role = domain.UserRoleMember
+	}
+	query := `INSERT INTO household_users (id, name, email, password_hash, role, is_blocked, created_at, updated_at) 
+	          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
+	_, err := r.pool.Exec(ctx, query, u.ID, u.Name, u.Email, u.PasswordHash, u.Role, u.IsBlocked, u.CreatedAt, u.UpdatedAt)
 	return err
 }
 
 func (r *userRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
-	query := `SELECT id, name, COALESCE(email, ''), is_blocked, created_at, updated_at FROM household_users WHERE id = $1`
+	query := `SELECT id, name, COALESCE(email, ''), COALESCE(password_hash, ''), COALESCE(role, 'MEMBER'), is_blocked, created_at, updated_at FROM household_users WHERE id = $1`
 	var u domain.User
-	err := r.pool.QueryRow(ctx, query, id).Scan(&u.ID, &u.Name, &u.Email, &u.IsBlocked, &u.CreatedAt, &u.UpdatedAt)
+	err := r.pool.QueryRow(ctx, query, id).Scan(&u.ID, &u.Name, &u.Email, &u.PasswordHash, &u.Role, &u.IsBlocked, &u.CreatedAt, &u.UpdatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return &u, nil
+}
+
+func (r *userRepo) GetByEmail(ctx context.Context, email string) (*domain.User, error) {
+	query := `SELECT id, name, COALESCE(email, ''), COALESCE(password_hash, ''), COALESCE(role, 'MEMBER'), is_blocked, created_at, updated_at FROM household_users WHERE LOWER(email) = LOWER($1)`
+	var u domain.User
+	err := r.pool.QueryRow(ctx, query, email).Scan(&u.ID, &u.Name, &u.Email, &u.PasswordHash, &u.Role, &u.IsBlocked, &u.CreatedAt, &u.UpdatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -79,22 +161,37 @@ func (r *userRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.User, err
 }
 
 func (r *userRepo) ListAll(ctx context.Context) ([]domain.User, error) {
-	query := `SELECT id, name, COALESCE(email, ''), is_blocked, created_at, updated_at FROM household_users ORDER BY name ASC`
+	query := `SELECT id, name, COALESCE(email, ''), COALESCE(password_hash, ''), COALESCE(role, 'MEMBER'), is_blocked, created_at, updated_at FROM household_users ORDER BY name ASC`
 	rows, err := r.pool.Query(ctx, query)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var users []domain.User
+	users := make([]domain.User, 0)
 	for rows.Next() {
 		var u domain.User
-		if err := rows.Scan(&u.ID, &u.Name, &u.Email, &u.IsBlocked, &u.CreatedAt, &u.UpdatedAt); err != nil {
+		if err := rows.Scan(&u.ID, &u.Name, &u.Email, &u.PasswordHash, &u.Role, &u.IsBlocked, &u.CreatedAt, &u.UpdatedAt); err != nil {
 			return nil, err
 		}
 		users = append(users, u)
 	}
 	return users, nil
+}
+
+func (r *userRepo) Update(ctx context.Context, u *domain.User) error {
+	if u.Role == "" {
+		u.Role = domain.UserRoleMember
+	}
+	query := `UPDATE household_users SET name = $2, email = $3, password_hash = $4, role = $5, is_blocked = $6, updated_at = $7 WHERE id = $1`
+	res, err := r.pool.Exec(ctx, query, u.ID, u.Name, u.Email, u.PasswordHash, u.Role, u.IsBlocked, time.Now())
+	if err != nil {
+		return err
+	}
+	if res.RowsAffected() == 0 {
+		return pgx.ErrNoRows
+	}
+	return nil
 }
 
 func (r *userRepo) Delete(ctx context.Context, id uuid.UUID) error {
@@ -121,10 +218,30 @@ func (r *userRepo) Block(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 
+func (r *userRepo) Count(ctx context.Context) (int64, error) {
+	query := `SELECT COUNT(*) FROM household_users`
+	var count int64
+	err := r.pool.QueryRow(ctx, query).Scan(&count)
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
 func (r *userRepo) CountPurchasesByUserID(ctx context.Context, id uuid.UUID) (int64, error) {
 	query := `SELECT COUNT(*) FROM purchases WHERE user_id = $1`
 	var count int64
 	err := r.pool.QueryRow(ctx, query, id).Scan(&count)
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
+func (r *userRepo) CountAdmins(ctx context.Context) (int64, error) {
+	query := `SELECT COUNT(*) FROM household_users WHERE role = 'ADMIN' AND password_hash <> '' AND is_blocked = FALSE`
+	var count int64
+	err := r.pool.QueryRow(ctx, query).Scan(&count)
 	if err != nil {
 		return 0, err
 	}
@@ -186,7 +303,7 @@ func (r *storeRepo) ListAll(ctx context.Context) ([]domain.Store, error) {
 	}
 	defer rows.Close()
 
-	var stores []domain.Store
+	stores := make([]domain.Store, 0)
 	for rows.Next() {
 		var s domain.Store
 		if err := rows.Scan(&s.ID, &s.Name, &s.CNPJ, &s.Address, &s.CreatedAt, &s.UpdatedAt); err != nil {
@@ -195,6 +312,30 @@ func (r *storeRepo) ListAll(ctx context.Context) ([]domain.Store, error) {
 		stores = append(stores, s)
 	}
 	return stores, nil
+}
+
+func (r *storeRepo) Update(ctx context.Context, s *domain.Store) error {
+	query := `UPDATE stores SET name = $2, cnpj = $3, address = $4, updated_at = $5 WHERE id = $1`
+	res, err := r.pool.Exec(ctx, query, s.ID, s.Name, s.CNPJ, s.Address, time.Now())
+	if err != nil {
+		return err
+	}
+	if res.RowsAffected() == 0 {
+		return pgx.ErrNoRows
+	}
+	return nil
+}
+
+func (r *storeRepo) Delete(ctx context.Context, id uuid.UUID) error {
+	query := `DELETE FROM stores WHERE id = $1`
+	res, err := r.pool.Exec(ctx, query, id)
+	if err != nil {
+		return err
+	}
+	if res.RowsAffected() == 0 {
+		return pgx.ErrNoRows
+	}
+	return nil
 }
 
 // --- CanonicalProductRepository Implementation ---
@@ -225,7 +366,6 @@ func (r *productRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.Canoni
 }
 
 func (r *productRepo) FindNearestByEmbedding(ctx context.Context, vec pgvector.Vector, minSimilarity float32) (*domain.CanonicalProduct, float32, error) {
-	// Usando operador de distância de cosseno <=> do pgvector: 1 - cosine_distance = similarity
 	query := `
 		SELECT id, name, COALESCE(category, 'Geral'), base_unit, embedding, created_at, updated_at,
 		       1 - (embedding <=> $1) AS similarity
@@ -245,6 +385,34 @@ func (r *productRepo) FindNearestByEmbedding(ctx context.Context, vec pgvector.V
 	return &p, similarity, nil
 }
 
+func (r *productRepo) SearchSemantic(ctx context.Context, vec pgvector.Vector, limit int) ([]domain.CanonicalProduct, error) {
+	if limit <= 0 {
+		limit = 10
+	}
+	query := `
+		SELECT id, name, COALESCE(category, 'Geral'), base_unit, created_at, updated_at
+		FROM canonical_products
+		WHERE embedding IS NOT NULL
+		ORDER BY embedding <=> $1 ASC
+		LIMIT $2
+	`
+	rows, err := r.pool.Query(ctx, query, vec, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	prods := make([]domain.CanonicalProduct, 0)
+	for rows.Next() {
+		var p domain.CanonicalProduct
+		if err := rows.Scan(&p.ID, &p.Name, &p.Category, &p.BaseUnit, &p.CreatedAt, &p.UpdatedAt); err != nil {
+			return nil, err
+		}
+		prods = append(prods, p)
+	}
+	return prods, nil
+}
+
 func (r *productRepo) SearchByName(ctx context.Context, queryStr string) ([]domain.CanonicalProduct, error) {
 	query := `
 		SELECT id, name, COALESCE(category, 'Geral'), base_unit, created_at, updated_at 
@@ -259,7 +427,7 @@ func (r *productRepo) SearchByName(ctx context.Context, queryStr string) ([]doma
 	}
 	defer rows.Close()
 
-	var prods []domain.CanonicalProduct
+	prods := make([]domain.CanonicalProduct, 0)
 	for rows.Next() {
 		var p domain.CanonicalProduct
 		if err := rows.Scan(&p.ID, &p.Name, &p.Category, &p.BaseUnit, &p.CreatedAt, &p.UpdatedAt); err != nil {
@@ -278,7 +446,7 @@ func (r *productRepo) ListAll(ctx context.Context) ([]domain.CanonicalProduct, e
 	}
 	defer rows.Close()
 
-	var prods []domain.CanonicalProduct
+	prods := make([]domain.CanonicalProduct, 0)
 	for rows.Next() {
 		var p domain.CanonicalProduct
 		if err := rows.Scan(&p.ID, &p.Name, &p.Category, &p.BaseUnit, &p.CreatedAt, &p.UpdatedAt); err != nil {
@@ -353,7 +521,6 @@ func (r *purchaseRepo) UpdatePurchase(ctx context.Context, p *domain.Purchase) e
 		return fmt.Errorf("failed to update purchase: %w", err)
 	}
 
-	// Deleta itens existentes e re-insere atualizados
 	_, err = tx.Exec(ctx, `DELETE FROM purchase_items WHERE purchase_id = $1`, p.ID)
 	if err != nil {
 		return fmt.Errorf("failed to clean existing items: %w", err)
@@ -410,6 +577,7 @@ func (r *purchaseRepo) GetPurchaseByID(ctx context.Context, id uuid.UUID) (*doma
 	}
 	defer rows.Close()
 
+	p.Items = make([]domain.PurchaseItem, 0)
 	for rows.Next() {
 		var item domain.PurchaseItem
 		if err := rows.Scan(
@@ -435,7 +603,7 @@ func (r *purchaseRepo) ListPurchases(ctx context.Context, limit int, offset int)
 	}
 	defer rows.Close()
 
-	var purchases []domain.Purchase
+	purchases := make([]domain.Purchase, 0)
 	for rows.Next() {
 		var p domain.Purchase
 		if err := rows.Scan(
@@ -448,7 +616,6 @@ func (r *purchaseRepo) ListPurchases(ctx context.Context, limit int, offset int)
 	return purchases, nil
 }
 
-// GetPriceComparison calcula o menor preço normalizado, oscilação e histórico do produto canônico
 func (r *purchaseRepo) GetPriceComparison(ctx context.Context, canonicalProductID uuid.UUID) (*domain.PriceComparisonView, error) {
 	var prodName, baseUnit string
 	err := r.pool.QueryRow(ctx, `SELECT name, base_unit FROM canonical_products WHERE id = $1`, canonicalProductID).Scan(&prodName, &baseUnit)
@@ -460,7 +627,7 @@ func (r *purchaseRepo) GetPriceComparison(ctx context.Context, canonicalProductI
 		CanonicalProductID: canonicalProductID.String(),
 		ProductName:        prodName,
 		BaseUnit:           baseUnit,
-		RecentPurchases:    []domain.RecentItemPurchase{},
+		RecentPurchases:    make([]domain.RecentItemPurchase, 0),
 	}
 
 	summaryQuery := `
@@ -517,7 +684,6 @@ func (r *purchaseRepo) GetPriceComparison(ctx context.Context, canonicalProductI
 	return view, nil
 }
 
-// GetMonthlyOscillation agrupa os preços do produto por quinzenas/períodos do mês
 func (r *purchaseRepo) GetMonthlyOscillation(ctx context.Context, canonicalProductID uuid.UUID) (*domain.MonthlyPriceOscillation, error) {
 	var prodName, baseUnit string
 	err := r.pool.QueryRow(ctx, `SELECT name, base_unit FROM canonical_products WHERE id = $1`, canonicalProductID).Scan(&prodName, &baseUnit)
@@ -529,6 +695,7 @@ func (r *purchaseRepo) GetMonthlyOscillation(ctx context.Context, canonicalProdu
 		CanonicalProductID: canonicalProductID.String(),
 		ProductName:        prodName,
 		BaseUnit:           baseUnit,
+		Periods:            make([]domain.PeriodMetric, 0),
 	}
 
 	periodsQuery := `
@@ -564,13 +731,13 @@ func (r *purchaseRepo) GetMonthlyOscillation(ctx context.Context, canonicalProdu
 	return oscillation, nil
 }
 
-// GetGlobalSummary calcula totais por morador e mercados
 func (r *purchaseRepo) GetGlobalSummary(ctx context.Context, month time.Time) (*domain.GlobalSummaryView, error) {
 	startOfMonth := time.Date(month.Year(), month.Month(), 1, 0, 0, 0, 0, month.Location())
 	endOfMonth := startOfMonth.AddDate(0, 1, 0).Add(-time.Nanosecond)
 
 	summary := &domain.GlobalSummaryView{
 		SpendingByUser: make(map[string]float64),
+		TopStores:      make([]domain.StoreShareMetric, 0),
 	}
 
 	_ = r.pool.QueryRow(ctx, `

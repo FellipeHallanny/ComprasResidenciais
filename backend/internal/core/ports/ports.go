@@ -28,9 +28,13 @@ type DeleteUserResult struct {
 type UserRepository interface {
 	Create(ctx context.Context, user *domain.User) error
 	GetByID(ctx context.Context, id uuid.UUID) (*domain.User, error)
+	GetByEmail(ctx context.Context, email string) (*domain.User, error)
 	ListAll(ctx context.Context) ([]domain.User, error)
+	Update(ctx context.Context, user *domain.User) error
 	Delete(ctx context.Context, id uuid.UUID) error
 	Block(ctx context.Context, id uuid.UUID) error
+	Count(ctx context.Context) (int64, error)
+	CountAdmins(ctx context.Context) (int64, error)
 	CountPurchasesByUserID(ctx context.Context, id uuid.UUID) (int64, error)
 }
 
@@ -39,6 +43,8 @@ type StoreRepository interface {
 	FindOrCreateByName(ctx context.Context, name string, cnpj string) (*domain.Store, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*domain.Store, error)
 	ListAll(ctx context.Context) ([]domain.Store, error)
+	Update(ctx context.Context, store *domain.Store) error
+	Delete(ctx context.Context, id uuid.UUID) error
 }
 
 // CanonicalProductRepository define o contrato para produtos com suporte a busca vetorial (pgvector)
@@ -46,6 +52,7 @@ type CanonicalProductRepository interface {
 	Create(ctx context.Context, product *domain.CanonicalProduct) error
 	GetByID(ctx context.Context, id uuid.UUID) (*domain.CanonicalProduct, error)
 	FindNearestByEmbedding(ctx context.Context, embedding pgvector.Vector, minSimilarity float32) (*domain.CanonicalProduct, float32, error)
+	SearchSemantic(ctx context.Context, vec pgvector.Vector, limit int) ([]domain.CanonicalProduct, error)
 	SearchByName(ctx context.Context, query string) ([]domain.CanonicalProduct, error)
 	ListAll(ctx context.Context) ([]domain.CanonicalProduct, error)
 }
@@ -119,7 +126,16 @@ type AnalyticsService interface {
 
 // UserService define os casos de uso para gerenciamento de moradores
 type UserService interface {
-	CreateUser(ctx context.Context, name, email string) (*domain.User, error)
+	CreateUser(ctx context.Context, name, email, password, role string) (*domain.User, error)
 	ListUsers(ctx context.Context) ([]domain.User, error)
+	UpdateUser(ctx context.Context, id uuid.UUID, name, email, role string, isBlocked bool, newPassword string) (*domain.User, error)
 	DeleteUser(ctx context.Context, id uuid.UUID) (*DeleteUserResult, error)
+}
+
+// AuthService define os contratos para autenticação, setup inicial e validação de tokens
+type AuthService interface {
+	Login(ctx context.Context, email, password string) (*domain.LoginResponse, error)
+	SetupInitialAdmin(ctx context.Context, name, email, password string) (*domain.LoginResponse, error)
+	GetAuthStatus(ctx context.Context) (bool, error)
+	ValidateToken(tokenString string) (*domain.User, error)
 }

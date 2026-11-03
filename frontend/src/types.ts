@@ -2,9 +2,19 @@
   id: string;
   name: string;
   email?: string;
+  role: 'ADMIN' | 'MEMBER';
   is_blocked: boolean;
   created_at: string;
   updated_at: string;
+}
+
+export interface LoginResponse {
+  token: string;
+  user: User;
+}
+
+export interface AuthStatusResponse {
+  has_admin: boolean;
 }
 
 export interface Store {

@@ -14,6 +14,7 @@ type Config struct {
 	GeminiAPIKey      string
 	SefazCertPath     string
 	SefazCertPassword string
+	JWTSecret         string
 }
 
 func LoadConfig() *Config {
@@ -50,11 +51,17 @@ func LoadConfig() *Config {
 		dbURL = "postgres://postgres:postgrespassword@localhost:5432/compras_residenciais?sslmode=disable"
 	}
 
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		jwtSecret = "compras-residenciais-jwt-secret-key-super-secure-2026"
+	}
+
 	return &Config{
 		Port:              port,
 		DatabaseURL:       dbURL,
 		GeminiAPIKey:      os.Getenv("GEMINI_API_KEY"),
 		SefazCertPath:     os.Getenv("SEFAZ_CERT_PATH"),
 		SefazCertPassword: os.Getenv("SEFAZ_CERT_PASSWORD"),
+		JWTSecret:         jwtSecret,
 	}
 }

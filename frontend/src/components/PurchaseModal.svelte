@@ -1,4 +1,4 @@
-﻿<script lang="ts">
+<script lang="ts">
   import {
     X,
     Upload,
@@ -15,7 +15,7 @@
     User as UserIcon,
     ArrowRight
   } from '@lucide/svelte';
-  import type { User, Store as StoreType, Purchase, PurchaseItem } from '../types';
+  import type { User, Store as StoreType, Purchase, PurchaseItem, CanonicalProduct } from '../types';
   import { api } from '../lib/api';
 
   interface Props {
@@ -26,6 +26,9 @@
   }
 
   let { users, stores, onclose, onsuccess }: Props = $props();
+
+  const userList = $derived(users ?? []);
+  const storeList = $derived(stores ?? []);
 
   type TabMode = 'upload' | 'sefaz' | 'manual';
   let activeTab = $state<TabMode>('upload');
@@ -61,6 +64,78 @@
   ]);
 
   const units = ['kg', 'g', 'L', 'ml', 'un'];
+
+  // --- pgvector Semantic Search for Items ---
+  let activeSearchIndex = $state<number | null>(null);
+  let searchResults = $state<CanonicalProduct[]>([]);
+  let isSearchingProduct = $state(false);
+  let searchDebounceTimer: any = null;
+
+  function handleItemDescriptionInput(idx: number, val: string) {
+    if (!editableItems[idx]) return;
+    editableItems[idx].raw_description = val;
+    editableItems[idx].canonical_product_id = undefined;
+
+    clearTimeout(searchDebounceTimer);
+    if (!val.trim()) {
+      searchResults = [];
+      activeSearchIndex = null;
+      return;
+    }
+
+    activeSearchIndex = idx;
+    isSearchingProduct = true;
+    searchDebounceTimer = setTimeout(async () => {
+      try {
+        const results = await api.searchProducts(val.trim());
+        if (activeSearchIndex === idx) {
+          searchResults = results;
+        }
+      } catch (err) {
+        console.error('Erro na busca sem�ntica pgvector:', err);
+      } finally {
+        isSearchingProduct = false;
+      }
+    }, 250);
+  }
+
+  async function triggerItemSearch(idx: number) {
+    if (activeSearchIndex === idx) {
+      activeSearchIndex = null;
+      return;
+    }
+    activeSearchIndex = idx;
+    const term = editableItems[idx]?.raw_description?.trim() || '';
+    isSearchingProduct = true;
+    try {
+      const results = await api.searchProducts(term);
+      if (activeSearchIndex === idx) {
+        searchResults = results;
+      }
+    } catch (err) {
+      console.error('Erro na busca sem�ntica pgvector:', err);
+    } finally {
+      isSearchingProduct = false;
+    }
+  }
+
+  function selectProductForIndex(idx: number, product: CanonicalProduct) {
+    if (editableItems[idx]) {
+      editableItems[idx].raw_description = product.name;
+      if (product.base_unit) {
+        editableItems[idx].package_unit = product.base_unit.toLowerCase();
+      }
+      editableItems[idx].canonical_product_id = product.id;
+    }
+    activeSearchIndex = null;
+  }
+
+  function handleWindowClick(e: MouseEvent) {
+    const target = e.target as HTMLElement | null;
+    if (target && !target.closest('.item-search-container')) {
+      activeSearchIndex = null;
+    }
+  }
 
   // Calculate live normalized price for an item
   function calcNormalized(item: PurchaseItem): number {
@@ -128,7 +203,7 @@
   async function submitSefaz() {
     const cleaned = fiscalKey.replace(/\s+/g, '');
     if (cleaned.length !== 44) {
-      errorMessage = 'A chave fiscal deve conter exatamente 44 dígitos numéricos.';
+      errorMessage = 'A chave fiscal deve conter exatamente 44 d�gitos num�ricos.';
       return;
     }
     isSubmitting = true;
@@ -152,7 +227,7 @@
   // Prepare manual purchase
   function proceedToManualReview() {
     if (!selectedUserId) {
-      errorMessage = 'Selecione o morador responsável pela compra.';
+      errorMessage = 'Selecione o morador respons�vel pela compra.';
       return;
     }
     if (!selectedStoreId && !customStoreName.trim()) {
@@ -176,13 +251,16 @@
   function removeItem(index: number) {
     if (editableItems.length > 1) {
       editableItems.splice(index, 1);
+      if (activeSearchIndex === index) {
+        activeSearchIndex = null;
+      }
     }
   }
 
   // Final Confirmation
   async function handleConfirmAndSave() {
     if (!selectedUserId) {
-      errorMessage = 'Selecione o morador comprador (obrigatório).';
+      errorMessage = 'Selecione o morador comprador (obrigat�rio).';
       return;
     }
 
@@ -193,11 +271,11 @@
 
     for (const it of editableItems) {
       if (!it.raw_description.trim()) {
-        errorMessage = 'Todos os itens precisam de uma descrição válida.';
+        errorMessage = 'Todos os itens precisam de uma descri��o v�lida.';
         return;
       }
       if (it.total_price <= 0) {
-        errorMessage = `Preço inválido para o item "${it.raw_description}".`;
+        errorMessage = `Pre�o inv�lido para o item "${it.raw_description}".`;
         return;
       }
     }
@@ -206,7 +284,6 @@
     errorMessage = '';
 
     try {
-      // If store is custom, create it first
       let finalStoreId = selectedStoreId;
       if (!finalStoreId && customStoreName.trim()) {
         const newStore = await api.createStore(customStoreName.trim());
@@ -214,7 +291,6 @@
       }
 
       if (draftPurchase?.id) {
-        // Updating & Confirming an existing Draft from Upload/SEFAZ
         const payload: Partial<Purchase> = {
           user_id: selectedUserId,
           store_id: finalStoreId || draftPurchase.store_id,
@@ -225,7 +301,6 @@
         const confirmed = await api.confirmPurchase(draftPurchase.id, payload);
         onsuccess(confirmed);
       } else {
-        // Creating a Manual Purchase directly
         const payload: Partial<Purchase> = {
           user_id: selectedUserId,
           store_id: finalStoreId,
@@ -244,6 +319,8 @@
   }
 </script>
 
+<svelte:window onclick={handleWindowClick} />
+
 <div class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
   <div class="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-4xl shadow-2xl overflow-hidden my-8">
     
@@ -259,10 +336,10 @@
         </div>
         <div>
           <h2 class="text-lg font-bold text-white">
-            {step === 'review' ? 'Conferência do Rascunho de Compra' : 'Registrar Nova Compra'}
+            {step === 'review' ? 'Confer�ncia do Rascunho de Compra' : 'Registrar Nova Compra'}
           </h2>
           <p class="text-xs text-slate-400">
-            {step === 'review' ? 'Revise os itens extraídos e vincule o morador antes de salvar' : 'Selecione o método de captura da nota fiscal'}
+            {step === 'review' ? 'Revise os itens extra�dos e vincule o morador antes de salvar' : 'Selecione o m�todo de captura da nota fiscal'}
           </p>
         </div>
       </div>
@@ -275,6 +352,14 @@
         <X class="w-5 h-5" />
       </button>
     </div>
+
+    <!-- Empty Users Notice -->
+    {#if userList.length === 0}
+      <div class="mx-6 mt-4 p-3.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs flex items-center gap-2">
+        <AlertCircle class="w-4 h-4 shrink-0" />
+        <span>Nenhum morador cadastrado ainda. Recomendamos cadastrar pelo menos um morador na aba <strong>Moradores</strong> antes de registrar compras.</span>
+      </div>
+    {/if}
 
     <!-- Error Banner -->
     {#if errorMessage}
@@ -338,14 +423,14 @@
                 {selectedFile ? selectedFile.name : 'Arraste ou clique para selecionar a foto ou PDF do cupom'}
               </h4>
               <p class="text-xs text-slate-400 mt-1">
-                Suporta fotos tiradas pelo celular (JPG, PNG) ou notas fiscais eletrônicas em PDF.
+                Suporta fotos tiradas pelo celular (JPG, PNG) ou notas fiscais eletr�nicas em PDF.
               </p>
             </div>
 
             <div class="flex items-center justify-between pt-4">
               <div class="flex items-center gap-2 text-xs text-slate-400">
                 <Sparkles class="w-4 h-4 text-emerald-400" />
-                <span>Extração multimodal automática de itens, quantidades e valores via Gemini</span>
+                <span>Extra��o multimodal autom�tica de itens, quantidades e valores via Gemini</span>
               </div>
 
               <button
@@ -370,7 +455,7 @@
           <div class="space-y-4 max-w-xl mx-auto py-4">
             <div>
               <label for="sefaz-key-input" class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">
-                Chave de Acesso da NFC-e / NF-e (44 dígitos)
+                Chave de Acesso da NFC-e / NF-e (44 d�gitos)
               </label>
               <input
                 id="sefaz-key-input"
@@ -381,7 +466,7 @@
                 class="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 font-mono text-sm tracking-widest placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
               />
               <p class="text-xs text-slate-500 mt-1.5">
-                Localizada no topo ou rodapé do cupom fiscal próximo ao QR-Code.
+                Localizada no topo ou rodap� do cupom fiscal pr�ximo ao QR-Code.
               </p>
             </div>
 
@@ -416,7 +501,7 @@
                   class="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
                 >
                   <option value="">Selecione o morador...</option>
-                  {#each users as u}
+                  {#each userList as u}
                     <option value={u.id}>{u.name}</option>
                   {/each}
                 </select>
@@ -431,7 +516,7 @@
                   class="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
                 >
                   <option value="">Selecione da lista...</option>
-                  {#each stores as s}
+                  {#each storeList as s}
                     <option value={s.id}>{s.name}</option>
                   {/each}
                 </select>
@@ -462,7 +547,7 @@
                 onclick={proceedToManualReview}
                 class="px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm shadow-md transition flex items-center gap-2 cursor-pointer"
               >
-                <span>Avançar para Lista de Itens</span>
+                <span>Avan�ar para Lista de Itens</span>
                 <ArrowRight class="w-4 h-4" />
               </button>
             </div>
@@ -470,7 +555,7 @@
         {/if}
 
       {:else}
-        <!-- Step 2: Tela de Conferência do Rascunho (Draft Review) -->
+        <!-- Step 2: Tela de Confer�ncia do Rascunho (Draft Review) -->
         <div class="space-y-5">
           <!-- Metadata Bar -->
           <div class="p-4 rounded-2xl bg-slate-950 border border-slate-800 grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -485,7 +570,7 @@
                 class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
               >
                 <option value="">Selecione o morador da casa...</option>
-                {#each users as u}
+                {#each userList as u}
                   <option value={u.id}>{u.name}</option>
                 {/each}
               </select>
@@ -502,7 +587,7 @@
                 class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
               >
                 <option value="">Selecione ou mantenha detectado...</option>
-                {#each stores as s}
+                {#each storeList as s}
                   <option value={s.id}>{s.name}</option>
                 {/each}
               </select>
@@ -525,9 +610,14 @@
           <!-- Items Table -->
           <div>
             <div class="flex items-center justify-between mb-2">
-              <span class="text-xs font-bold text-slate-300 uppercase tracking-wider">
-                Itens da Compra ({editableItems.length})
-              </span>
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-bold text-slate-300 uppercase tracking-wider">
+                  Itens da Compra ({editableItems.length})
+                </span>
+                <span class="text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium flex items-center gap-1">
+                  <Sparkles class="w-3 h-3" /> pgvector ativo
+                </span>
+              </div>
               <button
                 onclick={addItem}
                 class="text-xs font-semibold text-emerald-400 hover:text-emerald-300 flex items-center gap-1 cursor-pointer"
@@ -536,15 +626,15 @@
               </button>
             </div>
 
-            <div class="border border-slate-800 rounded-2xl overflow-hidden max-h-72 overflow-y-auto">
+            <div class="border border-slate-800 rounded-2xl min-h-[300px] max-h-96 overflow-y-auto">
               <table class="w-full text-left text-xs">
-                <thead class="bg-slate-950 text-slate-400 uppercase font-semibold border-b border-slate-800">
+                <thead class="bg-slate-950 text-slate-400 uppercase font-semibold border-b border-slate-800 sticky top-0 z-20">
                   <tr>
-                    <th class="px-3 py-2.5">Descrição do Item</th>
+                    <th class="px-3 py-2.5">Descri��o do Item</th>
                     <th class="px-3 py-2.5 w-16">Qtd</th>
                     <th class="px-3 py-2.5 w-24">Emb. (Tam)</th>
                     <th class="px-3 py-2.5 w-20">Unidade</th>
-                    <th class="px-3 py-2.5 w-28 text-right">Preço Total</th>
+                    <th class="px-3 py-2.5 w-28 text-right">Pre�o Total</th>
                     <th class="px-3 py-2.5 w-28 text-right text-emerald-400">Normalizado</th>
                     <th class="px-2 py-2.5 w-8"></th>
                   </tr>
@@ -552,14 +642,101 @@
                 <tbody class="divide-y divide-slate-800/60 bg-slate-900/50">
                   {#each editableItems as item, idx}
                     {@const norm = calcNormalized(item)}
+                    {@const openUpwards = idx > 1 && idx >= editableItems.length - 2}
                     <tr class="hover:bg-slate-800/30">
-                      <td class="px-3 py-2">
-                        <input
-                          type="text"
-                          bind:value={item.raw_description}
-                          placeholder="Nome / Descrição da nota"
-                          class="w-full px-2 py-1 bg-slate-950 border border-slate-700 rounded text-slate-100 text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none"
-                        />
+                      <td class="px-3 py-2 item-search-container relative">
+                        <div class="relative flex items-center">
+                          <input
+                            type="text"
+                            bind:value={item.raw_description}
+                            oninput={(e) => handleItemDescriptionInput(idx, (e.target as HTMLInputElement).value)}
+                            onfocus={() => {
+                              if (item.raw_description.trim().length >= 2 || searchResults.length > 0) {
+                                activeSearchIndex = idx;
+                              }
+                            }}
+                            placeholder="Nome / Descri��o da nota"
+                            class="w-full pl-2 pr-7 py-1.5 bg-slate-950 border {item.canonical_product_id ? 'border-emerald-500/60 ring-1 ring-emerald-500/30' : 'border-slate-700'} rounded text-slate-100 text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none"
+                          />
+                          <button
+                            type="button"
+                            onclick={() => triggerItemSearch(idx)}
+                            class="absolute right-1 text-slate-400 hover:text-emerald-400 p-1 rounded transition cursor-pointer"
+                            title="Buscar produtos j� cadastrados com pgvector"
+                          >
+                            <Sparkles class="w-3.5 h-3.5 {isSearchingProduct && activeSearchIndex === idx ? 'animate-spin text-emerald-400' : (item.canonical_product_id ? 'text-emerald-400' : '')}" />
+                          </button>
+                        </div>
+
+                        {#if item.canonical_product_id}
+                          <div class="flex items-center gap-1 mt-1 text-[10px] text-emerald-400">
+                            <Sparkles class="w-2.5 h-2.5 shrink-0" />
+                            <span class="truncate">Vinculado (pgvector)</span>
+                            <button
+                              type="button"
+                              onclick={() => { item.canonical_product_id = undefined; }}
+                              class="text-slate-500 hover:text-rose-400 ml-0.5 cursor-pointer"
+                              title="Desvincular produto can�nico"
+                            >
+                              �
+                            </button>
+                          </div>
+                        {/if}
+
+                        <!-- Autocomplete Dropdown -->
+                        {#if activeSearchIndex === idx}
+                          <div class="absolute z-50 left-3 {openUpwards ? 'bottom-full mb-1' : 'top-full mt-1'} w-72 sm:w-80 bg-slate-900 border border-emerald-500/50 rounded-xl shadow-2xl overflow-hidden">
+                            <div class="p-2 bg-slate-950 border-b border-slate-800 flex items-center justify-between text-[11px] text-slate-400">
+                              <span class="flex items-center gap-1.5 text-emerald-400 font-semibold">
+                                <Sparkles class="w-3 h-3" /> Cat�logo Inteligente (pgvector)
+                              </span>
+                              <button
+                                type="button"
+                                onclick={() => { activeSearchIndex = null; }}
+                                class="text-slate-500 hover:text-slate-300 cursor-pointer"
+                                title="Fechar sugest�es"
+                              >
+                                <X class="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+
+                            <div class="max-h-52 overflow-y-auto divide-y divide-slate-800/60">
+                              {#if isSearchingProduct}
+                                <div class="p-4 text-center text-xs text-slate-400 flex items-center justify-center gap-2">
+                                  <div class="w-3.5 h-3.5 border-2 border-emerald-500/30 border-t-emerald-400 rounded-full animate-spin"></div>
+                                  <span>Buscando produtos com IA & pgvector...</span>
+                                </div>
+                              {:else if searchResults.length === 0}
+                                <div class="p-3 text-center text-xs text-slate-400">
+                                  <span>Nenhum produto similar encontrado.</span>
+                                  <p class="text-[10px] text-slate-500 mt-0.5">Um novo produto can�nico e vetor ser�o gerados ao salvar.</p>
+                                </div>
+                              {:else}
+                                {#each searchResults as product}
+                                  <button
+                                    type="button"
+                                    onclick={() => selectProductForIndex(idx, product)}
+                                    class="w-full text-left px-3 py-2 hover:bg-slate-800/80 transition flex items-center justify-between group cursor-pointer"
+                                  >
+                                    <div class="min-w-0 pr-2">
+                                      <div class="font-medium text-slate-200 group-hover:text-emerald-400 transition-colors truncate">
+                                        {product.name}
+                                      </div>
+                                      <div class="text-[10px] text-slate-500 flex items-center gap-1.5 mt-0.5">
+                                        <span class="truncate">{product.category || 'Geral'}</span>
+                                        <span>�</span>
+                                        <span class="text-slate-400">Base: <strong class="text-slate-300 font-mono">{product.base_unit}</strong></span>
+                                      </div>
+                                    </div>
+                                    <span class="text-[10px] font-semibold px-2 py-0.5 rounded bg-slate-800 group-hover:bg-emerald-500/20 group-hover:text-emerald-300 text-slate-400 shrink-0">
+                                      Usar
+                                    </span>
+                                  </button>
+                                {/each}
+                              {/if}
+                            </div>
+                          </div>
+                        {/if}
                       </td>
                       <td class="px-3 py-2">
                         <input

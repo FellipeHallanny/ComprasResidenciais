@@ -24,22 +24,26 @@
 
   let { purchases, stores, users, loading, onrefresh }: Props = $props();
 
+  const purchaseList = $derived(purchases ?? []);
+  const storeList = $derived(stores ?? []);
+  const userList = $derived(users ?? []);
+
   let filterStatus = $state<'ALL' | 'CONFIRMED' | 'DRAFT'>('ALL');
   let selectedPurchase = $state<Purchase | null>(null);
   let loadingDetails = $state(false);
 
   const filteredList = $derived.by(() => {
-    if (filterStatus === 'ALL') return purchases;
-    return purchases.filter(p => p.status === filterStatus);
+    if (filterStatus === 'ALL') return purchaseList;
+    return purchaseList.filter(p => p.status === filterStatus);
   });
 
   function getStoreName(storeId: string): string {
-    const s = stores.find(x => x.id === storeId);
+    const s = storeList.find(x => x.id === storeId);
     return s?.name || 'Estabelecimento';
   }
 
   function getUserName(userId: string): string {
-    const u = users.find(x => x.id === userId);
+    const u = userList.find(x => x.id === userId);
     return u?.name || 'Não atribuído';
   }
 
@@ -87,7 +91,7 @@
         onclick={() => filterStatus = 'ALL'}
         class="px-3 py-1.5 rounded-lg transition cursor-pointer {filterStatus === 'ALL' ? 'bg-slate-800 text-emerald-400 shadow-sm' : 'text-slate-400 hover:text-slate-200'}"
       >
-        Todas ({purchases.length})
+        Todas ({purchaseList.length})
       </button>
       <button
         onclick={() => filterStatus = 'CONFIRMED'}
@@ -114,7 +118,10 @@
     {:else if filteredList.length === 0}
       <div class="p-12 text-center text-slate-400 text-sm">
         <ReceiptText class="w-10 h-10 text-slate-600 mx-auto mb-3" />
-        Nenhuma compra encontrada para este filtro.
+        <p class="font-semibold text-slate-300">Nenhuma compra encontrada</p>
+        <p class="text-xs text-slate-500 mt-1">
+          {purchaseList.length === 0 ? 'Nenhuma compra foi registrada no sistema ainda. Clique em "Registrar Compra" no topo para começar!' : 'Nenhuma compra corresponde ao filtro selecionado.'}
+        </p>
       </div>
     {:else}
       <div class="overflow-x-auto">

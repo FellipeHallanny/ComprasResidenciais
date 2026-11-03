@@ -9,14 +9,40 @@ import (
 	"github.com/pgvector/pgvector-go"
 )
 
+const (
+	UserRoleAdmin  = "ADMIN"
+	UserRoleMember = "MEMBER"
+)
+
 // User representa um morador da residência responsável por compras
 type User struct {
-	ID        uuid.UUID `json:"id"`
-	Name      string    `json:"name"`
-	Email     string    `json:"email,omitempty"`
-	IsBlocked bool      `json:"is_blocked"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID           uuid.UUID `json:"id"`
+	Name         string    `json:"name"`
+	Email        string    `json:"email,omitempty"`
+	PasswordHash string    `json:"-"`
+	Role         string    `json:"role"`
+	IsBlocked    bool      `json:"is_blocked"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+}
+
+// LoginRequest representa a requisição de login por e-mail e senha
+type LoginRequest struct {
+	Email    string `json:"email" binding:"required,email"`
+	Password string `json:"password" binding:"required"`
+}
+
+// LoginResponse retorna o token JWT e os dados do usuário autenticado
+type LoginResponse struct {
+	Token string `json:"token"`
+	User  User   `json:"user"`
+}
+
+// SetupAdminRequest representa o payload para registrar o primeiro administrador do sistema
+type SetupAdminRequest struct {
+	Name     string `json:"name" binding:"required"`
+	Email    string `json:"email" binding:"required,email"`
+	Password string `json:"password" binding:"required,min=6"`
 }
 
 // Store representa o estabelecimento comercial onde a compra ocorreu
