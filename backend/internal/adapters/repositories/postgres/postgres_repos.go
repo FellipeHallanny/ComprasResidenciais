@@ -101,6 +101,7 @@ func RunAutoMigrations(ctx context.Context, pool *pgxpool.Pool) error {
 		`ALTER TABLE household_users ADD COLUMN IF NOT EXISTS is_blocked BOOLEAN NOT NULL DEFAULT FALSE;`,
 		`ALTER TABLE household_users ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255) NOT NULL DEFAULT '';`,
 		`ALTER TABLE household_users ADD COLUMN IF NOT EXISTS role VARCHAR(20) NOT NULL DEFAULT 'MEMBER';`,
+		`ALTER TABLE household_users ADD COLUMN IF NOT EXISTS phone VARCHAR(50) NOT NULL DEFAULT '';`,
 		`CREATE UNIQUE INDEX IF NOT EXISTS household_users_email_idx ON household_users (email) WHERE email IS NOT NULL AND email <> '';`,
 	}
 
@@ -134,16 +135,16 @@ func (r *userRepo) Create(ctx context.Context, u *domain.User) error {
 	if u.Role == "" {
 		u.Role = domain.UserRoleMember
 	}
-	query := `INSERT INTO household_users (id, name, email, password_hash, role, is_blocked, created_at, updated_at) 
-	          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
-	_, err := r.pool.Exec(ctx, query, u.ID, u.Name, u.Email, u.PasswordHash, u.Role, u.IsBlocked, u.CreatedAt, u.UpdatedAt)
+	query := `INSERT INTO household_users (id, name, email, phone, password_hash, role, is_blocked, created_at, updated_at) 
+	          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
+	_, err := r.pool.Exec(ctx, query, u.ID, u.Name, u.Email, u.Phone, u.PasswordHash, u.Role, u.IsBlocked, u.CreatedAt, u.UpdatedAt)
 	return err
 }
 
 func (r *userRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
-	query := `SELECT id, name, COALESCE(email, ''), COALESCE(password_hash, ''), COALESCE(role, 'MEMBER'), is_blocked, created_at, updated_at FROM household_users WHERE id = $1`
+	query := `SELECT id, name, COALESCE(email, ''), COALESCE(phone, ''), COALESCE(password_hash, ''), COALESCE(role, 'MEMBER'), is_blocked, created_at, updated_at FROM household_users WHERE id = $1`
 	var u domain.User
-	err := r.pool.QueryRow(ctx, query, id).Scan(&u.ID, &u.Name, &u.Email, &u.PasswordHash, &u.Role, &u.IsBlocked, &u.CreatedAt, &u.UpdatedAt)
+	err := r.pool.QueryRow(ctx, query, id).Scan(&u.ID, &u.Name, &u.Email, &u.Phone, &u.PasswordHash, &u.Role, &u.IsBlocked, &u.CreatedAt, &u.UpdatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -151,9 +152,9 @@ func (r *userRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.User, err
 }
 
 func (r *userRepo) GetByEmail(ctx context.Context, email string) (*domain.User, error) {
-	query := `SELECT id, name, COALESCE(email, ''), COALESCE(password_hash, ''), COALESCE(role, 'MEMBER'), is_blocked, created_at, updated_at FROM household_users WHERE LOWER(email) = LOWER($1)`
+	query := `SELECT id, name, COALESCE(email, ''), COALESCE(phone, ''), COALESCE(password_hash, ''), COALESCE(role, 'MEMBER'), is_blocked, created_at, updated_at FROM household_users WHERE LOWER(email) = LOWER($1)`
 	var u domain.User
-	err := r.pool.QueryRow(ctx, query, email).Scan(&u.ID, &u.Name, &u.Email, &u.PasswordHash, &u.Role, &u.IsBlocked, &u.CreatedAt, &u.UpdatedAt)
+	err := r.pool.QueryRow(ctx, query, email).Scan(&u.ID, &u.Name, &u.Email, &u.Phone, &u.PasswordHash, &u.Role, &u.IsBlocked, &u.CreatedAt, &u.UpdatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -161,7 +162,7 @@ func (r *userRepo) GetByEmail(ctx context.Context, email string) (*domain.User, 
 }
 
 func (r *userRepo) ListAll(ctx context.Context) ([]domain.User, error) {
-	query := `SELECT id, name, COALESCE(email, ''), COALESCE(password_hash, ''), COALESCE(role, 'MEMBER'), is_blocked, created_at, updated_at FROM household_users ORDER BY name ASC`
+	query := `SELECT id, name, COALESCE(email, ''), COALESCE(phone, ''), COALESCE(password_hash, ''), COALESCE(role, 'MEMBER'), is_blocked, created_at, updated_at FROM household_users ORDER BY name ASC`
 	rows, err := r.pool.Query(ctx, query)
 	if err != nil {
 		return nil, err
@@ -171,7 +172,7 @@ func (r *userRepo) ListAll(ctx context.Context) ([]domain.User, error) {
 	users := make([]domain.User, 0)
 	for rows.Next() {
 		var u domain.User
-		if err := rows.Scan(&u.ID, &u.Name, &u.Email, &u.PasswordHash, &u.Role, &u.IsBlocked, &u.CreatedAt, &u.UpdatedAt); err != nil {
+		if err := rows.Scan(&u.ID, &u.Name, &u.Email, &u.Phone, &u.PasswordHash, &u.Role, &u.IsBlocked, &u.CreatedAt, &u.UpdatedAt); err != nil {
 			return nil, err
 		}
 		users = append(users, u)
@@ -183,8 +184,8 @@ func (r *userRepo) Update(ctx context.Context, u *domain.User) error {
 	if u.Role == "" {
 		u.Role = domain.UserRoleMember
 	}
-	query := `UPDATE household_users SET name = $2, email = $3, password_hash = $4, role = $5, is_blocked = $6, updated_at = $7 WHERE id = $1`
-	res, err := r.pool.Exec(ctx, query, u.ID, u.Name, u.Email, u.PasswordHash, u.Role, u.IsBlocked, time.Now())
+	query := `UPDATE household_users SET name = $2, email = $3, phone = $4, password_hash = $5, role = $6, is_blocked = $7, updated_at = $8 WHERE id = $1`
+	res, err := r.pool.Exec(ctx, query, u.ID, u.Name, u.Email, u.Phone, u.PasswordHash, u.Role, u.IsBlocked, time.Now())
 	if err != nil {
 		return err
 	}
@@ -787,4 +788,106 @@ func (r *purchaseRepo) GetGlobalSummary(ctx context.Context, month time.Time) (*
 	}
 
 	return summary, nil
+}
+
+func (r *purchaseRepo) GetCatalogWithPrices(ctx context.Context) ([]domain.CatalogItemView, error) {
+	query := `
+		WITH product_stats AS (
+			SELECT 
+				pi.canonical_product_id,
+				MAX(p.purchased_at) as last_purchased_at,
+				COUNT(DISTINCT p.id) as total_purchases
+			FROM purchase_items pi
+			JOIN purchases p ON p.id = pi.purchase_id
+			WHERE pi.canonical_product_id IS NOT NULL AND p.status = 'CONFIRMED'
+			GROUP BY pi.canonical_product_id
+		),
+		ranked_items AS (
+			SELECT 
+				pi.canonical_product_id,
+				pi.normalized_price,
+				pi.package_size,
+				pi.package_unit,
+				s.id AS store_id,
+				s.name AS store_name,
+				COALESCE(s.address, '') AS store_address,
+				p.purchased_at,
+				ROW_NUMBER() OVER (
+					PARTITION BY pi.canonical_product_id 
+					ORDER BY pi.normalized_price ASC, p.purchased_at DESC
+				) as rn
+			FROM purchase_items pi
+			JOIN purchases p ON p.id = pi.purchase_id
+			JOIN stores s ON s.id = p.store_id
+			WHERE pi.canonical_product_id IS NOT NULL AND p.status = 'CONFIRMED'
+		)
+		SELECT 
+			cp.id,
+			cp.name,
+			COALESCE(cp.category, 'Geral'),
+			cp.base_unit,
+			COALESCE(ri.normalized_price, 0),
+			COALESCE(ri.store_name, ''),
+			ri.store_id,
+			COALESCE(ri.store_address, ''),
+			COALESCE(CONCAT(ri.package_size, ri.package_unit), ''),
+			ri.purchased_at,
+			ps.last_purchased_at,
+			cp.created_at,
+			COALESCE(ps.total_purchases, 0)
+		FROM canonical_products cp
+		LEFT JOIN ranked_items ri ON ri.canonical_product_id = cp.id AND ri.rn = 1
+		LEFT JOIN product_stats ps ON ps.canonical_product_id = cp.id
+		ORDER BY cp.name ASC;
+	`
+	rows, err := r.pool.Query(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query catalog with prices: %w", err)
+	}
+	defer rows.Close()
+
+	catalog := make([]domain.CatalogItemView, 0)
+	for rows.Next() {
+		var (
+			id              uuid.UUID
+			name            string
+			category        string
+			baseUnit        string
+			lowestPrice     float64
+			storeName       string
+			storeID         *uuid.UUID
+			storeAddress    string
+			packageInfo     string
+			purchasedAt     *time.Time
+			lastPurchasedAt *time.Time
+			createdAt       *time.Time
+			totalPurchases  int
+		)
+		if err := rows.Scan(&id, &name, &category, &baseUnit, &lowestPrice, &storeName, &storeID, &storeAddress, &packageInfo, &purchasedAt, &lastPurchasedAt, &createdAt, &totalPurchases); err != nil {
+			return nil, err
+		}
+
+		var storeIDStr *string
+		if storeID != nil {
+			s := storeID.String()
+			storeIDStr = &s
+		}
+
+		catalog = append(catalog, domain.CatalogItemView{
+			ID:                   id.String(),
+			Name:                 name,
+			Category:             category,
+			BaseUnit:             baseUnit,
+			LowestPricePerUnit:   lowestPrice,
+			CheapestStoreName:    storeName,
+			CheapestStoreID:      storeIDStr,
+			CheapestStoreAddress: storeAddress,
+			CheapestPackageInfo:  packageInfo,
+			CheapestPurchaseDate: purchasedAt,
+			LastPurchasedAt:      lastPurchasedAt,
+			CreatedAt:            createdAt,
+			TotalPurchases:       totalPurchases,
+		})
+	}
+	return catalog, nil
 }

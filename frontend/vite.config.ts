@@ -9,6 +9,7 @@ export default defineConfig({
     svelte()
   ],
   server: {
+    host: true, // Libera o acesso para a rede local (0.0.0.0)
     port: 5173,
     proxy: {
       '/api': {

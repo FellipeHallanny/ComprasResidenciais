@@ -58,3 +58,20 @@ type StoreShareMetric struct {
 	TotalSpent float64 `json:"total_spent"`
 	Percentage float64 `json:"percentage"`
 }
+
+// CatalogItemView consolida dados de um produto canônico com o seu menor preço registrado e estabelecimento mais barato
+type CatalogItemView struct {
+	ID                   string     `json:"id"`
+	Name                 string     `json:"name"`
+	Category             string     `json:"category"`
+	BaseUnit             string     `json:"base_unit"`
+	LowestPricePerUnit   float64    `json:"lowest_price_per_unit"`
+	CheapestStoreName    string     `json:"cheapest_store_name"`
+	CheapestStoreID      *string    `json:"cheapest_store_id,omitempty"`
+	CheapestStoreAddress string     `json:"cheapest_store_address,omitempty"`
+	CheapestPackageInfo  string     `json:"cheapest_package_info,omitempty"`
+	CheapestPurchaseDate *time.Time `json:"cheapest_purchase_date,omitempty"`
+	LastPurchasedAt      *time.Time `json:"last_purchased_at,omitempty"`
+	CreatedAt            *time.Time `json:"created_at,omitempty"`
+	TotalPurchases       int        `json:"total_purchases"`
+}

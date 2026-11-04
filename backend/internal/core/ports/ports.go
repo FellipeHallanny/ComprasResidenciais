@@ -68,6 +68,7 @@ type PurchaseRepository interface {
 	GetPriceComparison(ctx context.Context, canonicalProductID uuid.UUID) (*domain.PriceComparisonView, error)
 	GetMonthlyOscillation(ctx context.Context, canonicalProductID uuid.UUID) (*domain.MonthlyPriceOscillation, error)
 	GetGlobalSummary(ctx context.Context, month time.Time) (*domain.GlobalSummaryView, error)
+	GetCatalogWithPrices(ctx context.Context) ([]domain.CatalogItemView, error)
 }
 
 // ParsedReceiptItem representa os dados de item brutos extraídos pela LLM ou SEFAZ
@@ -122,13 +123,14 @@ type AnalyticsService interface {
 	GetMonthlyOscillation(ctx context.Context, canonicalProductID uuid.UUID) (*domain.MonthlyPriceOscillation, error)
 	GetGlobalSummary(ctx context.Context, month time.Time) (*domain.GlobalSummaryView, error)
 	SearchProducts(ctx context.Context, query string) ([]domain.CanonicalProduct, error)
+	GetCatalogWithPrices(ctx context.Context) ([]domain.CatalogItemView, error)
 }
 
 // UserService define os casos de uso para gerenciamento de moradores
 type UserService interface {
-	CreateUser(ctx context.Context, name, email, password, role string) (*domain.User, error)
+	CreateUser(ctx context.Context, name, email, phone, password, role string) (*domain.User, error)
 	ListUsers(ctx context.Context) ([]domain.User, error)
-	UpdateUser(ctx context.Context, id uuid.UUID, name, email, role string, isBlocked bool, newPassword string) (*domain.User, error)
+	UpdateUser(ctx context.Context, id uuid.UUID, name, email, phone, role string, isBlocked bool, newPassword string) (*domain.User, error)
 	DeleteUser(ctx context.Context, id uuid.UUID) (*DeleteUserResult, error)
 }
 

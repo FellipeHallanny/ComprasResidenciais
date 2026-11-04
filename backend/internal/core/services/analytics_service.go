@@ -15,13 +15,15 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+// --- AnalyticsService Implementation ---
+
 type analyticsService struct {
 	purchaseRepo ports.PurchaseRepository
 	productRepo  ports.CanonicalProductRepository
 	embedder     ports.EmbeddingProvider
 }
 
-// NewAnalyticsService cria instância do serviço de analytics com suporte a pgvector
+// NewAnalyticsService cria instância do serviço analítico
 func NewAnalyticsService(
 	purchaseRepo ports.PurchaseRepository,
 	productRepo ports.CanonicalProductRepository,
@@ -44,6 +46,10 @@ func (s *analyticsService) GetMonthlyOscillation(ctx context.Context, canonicalP
 
 func (s *analyticsService) GetGlobalSummary(ctx context.Context, month time.Time) (*domain.GlobalSummaryView, error) {
 	return s.purchaseRepo.GetGlobalSummary(ctx, month)
+}
+
+func (s *analyticsService) GetCatalogWithPrices(ctx context.Context) ([]domain.CatalogItemView, error) {
+	return s.purchaseRepo.GetCatalogWithPrices(ctx)
 }
 
 func (s *analyticsService) SearchProducts(ctx context.Context, query string) ([]domain.CanonicalProduct, error) {
@@ -78,7 +84,7 @@ func NewUserService(userRepo ports.UserRepository) ports.UserService {
 	return &userService{userRepo: userRepo}
 }
 
-func (s *userService) CreateUser(ctx context.Context, name, email, password, role string) (*domain.User, error) {
+func (s *userService) CreateUser(ctx context.Context, name, email, phone, password, role string) (*domain.User, error) {
 	if role == "" {
 		role = domain.UserRoleMember
 	}
@@ -93,8 +99,9 @@ func (s *userService) CreateUser(ctx context.Context, name, email, password, rol
 
 	user := &domain.User{
 		ID:           uuid.New(),
-		Name:         name,
-		Email:        email,
+		Name:         strings.TrimSpace(name),
+		Email:        strings.TrimSpace(email),
+		Phone:        strings.TrimSpace(phone),
 		PasswordHash: passwordHash,
 		Role:         role,
 		IsBlocked:    false,
@@ -111,19 +118,20 @@ func (s *userService) ListUsers(ctx context.Context) ([]domain.User, error) {
 	return s.userRepo.ListAll(ctx)
 }
 
-func (s *userService) UpdateUser(ctx context.Context, id uuid.UUID, name, email, role string, isBlocked bool, newPassword string) (*domain.User, error) {
+func (s *userService) UpdateUser(ctx context.Context, id uuid.UUID, name, email, phone, role string, isBlocked bool, newPassword string) (*domain.User, error) {
 	user, err := s.userRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 
-	user.Name = name
-	user.Email = email
+	user.Name = strings.TrimSpace(name)
+	user.Email = strings.TrimSpace(email)
+	user.Phone = strings.TrimSpace(phone)
 	if role != "" {
 		user.Role = role
 	}
 	user.IsBlocked = isBlocked
-	if newPassword != "" {
+	if strings.TrimSpace(newPassword) != "" {
 		hash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
 		if err != nil {
 			return nil, fmt.Errorf("failed to hash password: %w", err)
@@ -145,35 +153,35 @@ func (s *userService) DeleteUser(ctx context.Context, id uuid.UUID) (*ports.Dele
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, errors.New("user not found")
 		}
-		return nil, fmt.Errorf("failed to fetch user: %w", err)
+		return nil, err
 	}
 
-	// 2. Verifica se existem compras vinculadas ao usuário
-	purchaseCount, err := s.userRepo.CountPurchasesByUserID(ctx, id)
+	// 2. Verifica se o usuário possui compras vinculadas no histórico
+	count, err := s.userRepo.CountPurchasesByUserID(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to check user purchases: %w", err)
 	}
 
-	// Se possui histórico de compras, bloqueia o usuário mantendo o histórico
-	if purchaseCount > 0 {
+	// 3. Se possui compras vinculadas, NÃO exclui para manter integridade histórica; aplica soft-lock (is_blocked = true)
+	if count > 0 {
 		if err := s.userRepo.Block(ctx, id); err != nil {
 			return nil, fmt.Errorf("failed to block user: %w", err)
 		}
 		return &ports.DeleteUserResult{
 			Action:  ports.UserActionBlocked,
-			Message: fmt.Sprintf("Usuário '%s' possui %d compra(s) associada(s). O usuário foi bloqueado para preservar o histórico financeiro.", user.Name, purchaseCount),
+			Message: fmt.Sprintf("O morador '%s' possui %d compra(s) registrada(s). Para manter o histórico fiscal e comparativos, o acesso foi bloqueado em vez de excluído.", user.Name, count),
 			UserID:  id,
 		}, nil
 	}
 
-	// Caso contrário, não tem registros vinculados: deleta definitivamente
+	// 4. Se não possui compras, exclui fisicamente da tabela
 	if err := s.userRepo.Delete(ctx, id); err != nil {
 		return nil, fmt.Errorf("failed to delete user: %w", err)
 	}
 
 	return &ports.DeleteUserResult{
 		Action:  ports.UserActionDeleted,
-		Message: fmt.Sprintf("Usuário '%s' não possuía compras vinculadas e foi deletado permanentemente com sucesso.", user.Name),
+		Message: fmt.Sprintf("Morador '%s' removido com sucesso.", user.Name),
 		UserID:  id,
 	}, nil
 }

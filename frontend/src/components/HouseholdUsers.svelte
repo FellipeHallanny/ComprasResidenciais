@@ -8,6 +8,7 @@
     ShieldAlert,
     CheckCircle,
     Mail,
+    Phone,
     AlertCircle,
     X,
     Check,
@@ -30,6 +31,7 @@
   let editingUser = $state<User | null>(null);
   let name = $state('');
   let email = $state('');
+  let phone = $state('');
   let role = $state<'ADMIN' | 'MEMBER'>('MEMBER');
   let password = $state('');
   let isBlocked = $state(false);
@@ -41,6 +43,7 @@
     editingUser = user;
     name = user.name;
     email = user.email || '';
+    phone = user.phone || '';
     role = user.role || 'MEMBER';
     isBlocked = !!user.is_blocked;
     password = '';
@@ -52,6 +55,7 @@
     editingUser = null;
     name = '';
     email = '';
+    phone = '';
     role = 'MEMBER';
     password = '';
     isBlocked = false;
@@ -74,6 +78,7 @@
         await api.updateUser(editingUser.id, {
           name: name.trim(),
           email: email.trim(),
+          phone: phone.trim(),
           role: role,
           is_blocked: isBlocked,
           new_password: password.trim() ? password.trim() : undefined,
@@ -82,9 +87,10 @@
         cancelEdit();
       } else {
         // Modo Criação
-        await api.createUser(name.trim(), email.trim(), password.trim(), role);
+        await api.createUser(name.trim(), email.trim(), phone.trim(), password.trim(), role);
         name = '';
         email = '';
+        phone = '';
         password = '';
         role = 'MEMBER';
         feedbackMessage = 'Morador cadastrado com sucesso!';
@@ -133,7 +139,7 @@
       <div>
         <h2 class="text-lg font-bold text-white">Moradores da Residência</h2>
         <p class="text-xs text-slate-400">
-          Gerencie os membros da casa responsáveis por realizar compras e dividir as despesas
+          Gerencie os membros da casa responsáveis por realizar compras, receber listas pelo WhatsApp/e-mail e dividir as despesas
         </p>
       </div>
     </div>
@@ -189,7 +195,7 @@
         </div>
 
         <div>
-          <label for="user-email" class="block text-xs font-semibold text-slate-300 mb-1">E-mail para Acesso</label>
+          <label for="user-email" class="block text-xs font-semibold text-slate-300 mb-1">E-mail</label>
           <input
             id="user-email"
             type="email"
@@ -197,6 +203,21 @@
             placeholder="carlos@email.com"
             class="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none"
           />
+        </div>
+
+        <div>
+          <label for="user-phone" class="block text-xs font-semibold text-slate-300 mb-1">WhatsApp / Telefone</label>
+          <div class="relative">
+            <input
+              id="user-phone"
+              type="tel"
+              bind:value={phone}
+              placeholder="Ex: (11) 98765-4321 ou 5511999998888"
+              class="w-full pl-8 pr-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none"
+            />
+            <Phone class="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-2.5 pointer-events-none" />
+          </div>
+          <p class="text-[10px] text-slate-500 mt-1">Usado para receber listas de compras com menor preço.</p>
         </div>
 
         <div>
@@ -334,12 +355,21 @@
                       </span>
                     {/if}
                   </div>
-                  {#if u.email}
-                    <div class="text-xs text-slate-400 flex items-center gap-1 mt-0.5">
-                      <Mail class="w-3 h-3 text-slate-500" />
-                      <span>{u.email}</span>
-                    </div>
-                  {/if}
+                  
+                  <div class="flex flex-wrap items-center gap-3 mt-1 text-xs text-slate-400">
+                    {#if u.email}
+                      <div class="flex items-center gap-1">
+                        <Mail class="w-3 h-3 text-slate-500" />
+                        <span>{u.email}</span>
+                      </div>
+                    {/if}
+                    {#if u.phone}
+                      <div class="flex items-center gap-1 text-emerald-400/90 font-mono">
+                        <Phone class="w-3 h-3 text-emerald-500" />
+                        <span>{u.phone}</span>
+                      </div>
+                    {/if}
+                  </div>
                 </div>
               </div>
 

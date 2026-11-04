@@ -3,6 +3,7 @@
   Store,
   Purchase,
   CanonicalProduct,
+  CatalogItemView,
   PriceComparisonView,
   MonthlyPriceOscillation,
   GlobalSummaryView
@@ -66,13 +67,14 @@ export const api = {
     return Array.isArray(data) ? data : [];
   },
 
-  createUser: async (name: string, email?: string, password?: string, role?: string): Promise<User> => {
+  createUser: async (name: string, email?: string, phone?: string, password?: string, role?: string): Promise<User> => {
     const res = await authFetch(`${API_BASE}/users`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         name,
         email: email || '',
+        phone: phone || '',
         password: password || '',
         role: role || 'MEMBER',
       }),
@@ -85,6 +87,7 @@ export const api = {
     data: {
       name: string;
       email?: string;
+      phone?: string;
       role?: string;
       is_blocked?: boolean;
       new_password?: string;
@@ -96,6 +99,7 @@ export const api = {
       body: JSON.stringify({
         name: data.name,
         email: data.email || '',
+        phone: data.phone || '',
         role: data.role,
         is_blocked: !!data.is_blocked,
         new_password: data.new_password,
@@ -196,10 +200,16 @@ export const api = {
     return handleResponse<Purchase>(res);
   },
 
-  // Analytics
+  // Analytics & Catalog
   searchProducts: async (query: string): Promise<CanonicalProduct[]> => {
     const res = await authFetch(`${API_BASE}/analytics/search-products?q=${encodeURIComponent(query)}`);
     const data = await handleResponse<CanonicalProduct[]>(res);
+    return Array.isArray(data) ? data : [];
+  },
+
+  getCatalogWithPrices: async (): Promise<CatalogItemView[]> => {
+    const res = await authFetch(`${API_BASE}/analytics/catalog-prices`);
+    const data = await handleResponse<CatalogItemView[]>(res);
     return Array.isArray(data) ? data : [];
   },
 
@@ -216,6 +226,16 @@ export const api = {
   getSummary: async (): Promise<GlobalSummaryView> => {
     const res = await authFetch(`${API_BASE}/analytics/summary`);
     return handleResponse<GlobalSummaryView>(res);
+  },
+
+  // Shopping List
+  sendShoppingListEmail: async (toEmail: string, subject: string, content: string): Promise<{ status: string; message: string }> => {
+    const res = await authFetch(`${API_BASE}/shopping-list/send-email`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ to_email: toEmail, subject, content }),
+    });
+    return handleResponse<{ status: string; message: string }>(res);
   },
 
   // Admin / Reset

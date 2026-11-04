@@ -2,6 +2,7 @@
   id: string;
   name: string;
   email?: string;
+  phone?: string;
   role: 'ADMIN' | 'MEMBER';
   is_blocked: boolean;
   created_at: string;
@@ -116,4 +117,26 @@ export interface GlobalSummaryView {
   total_purchases: number;
   spending_by_user: Record<string, number>;
   top_stores: StoreShareMetric[];
+}
+
+export interface CatalogItemView {
+  id: string;
+  name: string;
+  category: string;
+  base_unit: string;
+  lowest_price_per_unit: number;
+  cheapest_store_name: string;
+  cheapest_store_id?: string;
+  cheapest_store_address?: string;
+  cheapest_package_info?: string;
+  cheapest_purchase_date?: string;
+  last_purchased_at?: string;
+  created_at?: string;
+  total_purchases: number;
+}
+
+export interface SelectedShoppingItem {
+  product: CatalogItemView;
+  desired_quantity: number;
+  notes?: string;
 }

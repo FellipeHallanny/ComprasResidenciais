@@ -19,6 +19,7 @@ type User struct {
 	ID           uuid.UUID `json:"id"`
 	Name         string    `json:"name"`
 	Email        string    `json:"email,omitempty"`
+	Phone        string    `json:"phone,omitempty"`
 	PasswordHash string    `json:"-"`
 	Role         string    `json:"role"`
 	IsBlocked    bool      `json:"is_blocked"`
@@ -118,53 +119,51 @@ type PurchaseItem struct {
 // Unidades aceitas: peso (kg, g), volume (l, ml), contagem (un)
 func (item *PurchaseItem) NormalizeUnits() error {
 	if item.TotalPrice < 0 {
-		return errors.New("total price cannot be negative")
+		return errors.New("total_price cannot be negative")
 	}
-
-	unit := strings.ToLower(strings.TrimSpace(item.PackageUnit))
-	qty := item.Quantity
-	if qty <= 0 {
-		qty = 1.0
+	if item.Quantity <= 0 {
 		item.Quantity = 1.0
 	}
-	size := item.PackageSize
-	if size <= 0 {
-		size = 1.0
+	if item.PackageSize <= 0 {
 		item.PackageSize = 1.0
 	}
 
-	var baseTotal float64
+	unit := strings.ToLower(strings.TrimSpace(item.PackageUnit))
+	var baseMultiplier float64
+
 	switch unit {
-	case "kg", "quilo", "kilos":
-		baseTotal = qty * size
+	case "kg", "quilo", "kilo":
+		baseMultiplier = 1.0
 		item.PackageUnit = "kg"
-	case "g", "gramas", "gr":
-		baseTotal = (qty * size) / 1000.0
+	case "g", "grama", "gr":
+		baseMultiplier = 0.001
 		item.PackageUnit = "kg"
-	case "l", "litro", "litros":
-		baseTotal = qty * size
+	case "l", "litro", "lt":
+		baseMultiplier = 1.0
 		item.PackageUnit = "L"
-	case "ml", "mililitros":
-		baseTotal = (qty * size) / 1000.0
+	case "ml", "mililitro":
+		baseMultiplier = 0.001
 		item.PackageUnit = "L"
-	case "un", "unidade", "unidades", "pct", "cx":
-		baseTotal = qty * size
+	case "un", "unidade", "und", "pct", "pacote", "cx", "caixa", "dz", "duzia":
+		baseMultiplier = 1.0
 		item.PackageUnit = "un"
 	default:
-		// Default para unidade genérica
-		baseTotal = qty * size
+		baseMultiplier = 1.0
 		item.PackageUnit = "un"
 	}
 
-	item.TotalUnits = baseTotal
-	if baseTotal > 0 {
-		item.NormalizedPrice = item.TotalPrice / baseTotal
+	item.TotalUnits = item.Quantity * item.PackageSize * baseMultiplier
+
+	if item.Quantity > 0 {
+		item.UnitPrice = item.TotalPrice / item.Quantity
 	} else {
-		item.NormalizedPrice = item.TotalPrice
+		item.UnitPrice = item.TotalPrice
 	}
 
-	if qty > 0 {
-		item.UnitPrice = item.TotalPrice / qty
+	if item.TotalUnits > 0 {
+		item.NormalizedPrice = item.TotalPrice / item.TotalUnits
+	} else {
+		item.NormalizedPrice = item.TotalPrice
 	}
 
 	return nil

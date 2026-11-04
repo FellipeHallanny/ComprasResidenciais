@@ -10,13 +10,14 @@
     RotateCcw,
     LogOut,
     Shield,
-    User as UserIcon
+    User as UserIcon,
+    ListChecks
   } from '@lucide/svelte';
   import { auth } from '../lib/auth.svelte';
 
   interface Props {
-    activeTab: 'dashboard' | 'purchases' | 'household' | 'stores';
-    onselectTab: (tab: 'dashboard' | 'purchases' | 'household' | 'stores') => void;
+    activeTab: 'dashboard' | 'purchases' | 'shopping-list' | 'household' | 'stores';
+    onselectTab: (tab: 'dashboard' | 'purchases' | 'shopping-list' | 'household' | 'stores') => void;
     onopenPurchaseModal: () => void;
     onresetDatabase: () => void;
   }
@@ -56,6 +57,14 @@
         >
           <ReceiptText class="w-3.5 h-3.5" />
           <span>Compras</span>
+        </button>
+
+        <button
+          onclick={() => onselectTab('shopping-list')}
+          class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer {activeTab === 'shopping-list' ? 'bg-slate-800 text-emerald-400 shadow-sm border border-slate-700' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'}"
+        >
+          <ListChecks class="w-3.5 h-3.5 text-emerald-400" />
+          <span>Lista de Compras</span>
         </button>
 
         <button
@@ -130,36 +139,44 @@
 
     <!-- Mobile Navigation Bar (< md) -->
     <div class="md:hidden pb-2.5 pt-0.5">
-      <nav class="grid grid-cols-4 gap-1 p-1 bg-slate-950/80 border border-slate-800 rounded-xl">
+      <nav class="grid grid-cols-5 gap-1 p-1 bg-slate-950/80 border border-slate-800 rounded-xl">
         <button
           onclick={() => onselectTab('dashboard')}
-          class="flex flex-col items-center justify-center py-1.5 px-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer {activeTab === 'dashboard' ? 'bg-slate-800 text-emerald-400 border border-slate-700' : 'text-slate-400 hover:text-slate-200'}"
+          class="flex flex-col items-center justify-center py-1.5 px-1 rounded-lg text-[10px] font-semibold transition-all cursor-pointer {activeTab === 'dashboard' ? 'bg-slate-800 text-emerald-400 border border-slate-700' : 'text-slate-400 hover:text-slate-200'}"
         >
-          <BarChart3 class="w-4 h-4 mb-0.5" />
+          <BarChart3 class="w-3.5 h-3.5 mb-0.5" />
           <span>Preços</span>
         </button>
 
         <button
           onclick={() => onselectTab('purchases')}
-          class="flex flex-col items-center justify-center py-1.5 px-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer {activeTab === 'purchases' ? 'bg-slate-800 text-emerald-400 border border-slate-700' : 'text-slate-400 hover:text-slate-200'}"
+          class="flex flex-col items-center justify-center py-1.5 px-1 rounded-lg text-[10px] font-semibold transition-all cursor-pointer {activeTab === 'purchases' ? 'bg-slate-800 text-emerald-400 border border-slate-700' : 'text-slate-400 hover:text-slate-200'}"
         >
-          <ReceiptText class="w-4 h-4 mb-0.5" />
+          <ReceiptText class="w-3.5 h-3.5 mb-0.5" />
           <span>Compras</span>
         </button>
 
         <button
-          onclick={() => onselectTab('household')}
-          class="flex flex-col items-center justify-center py-1.5 px-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer {activeTab === 'household' ? 'bg-slate-800 text-emerald-400 border border-slate-700' : 'text-slate-400 hover:text-slate-200'}"
+          onclick={() => onselectTab('shopping-list')}
+          class="flex flex-col items-center justify-center py-1.5 px-1 rounded-lg text-[10px] font-semibold transition-all cursor-pointer {activeTab === 'shopping-list' ? 'bg-slate-800 text-emerald-400 border border-slate-700' : 'text-slate-400 hover:text-slate-200'}"
         >
-          <Users class="w-4 h-4 mb-0.5" />
+          <ListChecks class="w-3.5 h-3.5 mb-0.5 text-emerald-400" />
+          <span>Lista</span>
+        </button>
+
+        <button
+          onclick={() => onselectTab('household')}
+          class="flex flex-col items-center justify-center py-1.5 px-1 rounded-lg text-[10px] font-semibold transition-all cursor-pointer {activeTab === 'household' ? 'bg-slate-800 text-emerald-400 border border-slate-700' : 'text-slate-400 hover:text-slate-200'}"
+        >
+          <Users class="w-3.5 h-3.5 mb-0.5" />
           <span>Moradores</span>
         </button>
 
         <button
           onclick={() => onselectTab('stores')}
-          class="flex flex-col items-center justify-center py-1.5 px-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer {activeTab === 'stores' ? 'bg-slate-800 text-emerald-400 border border-slate-700' : 'text-slate-400 hover:text-slate-200'}"
+          class="flex flex-col items-center justify-center py-1.5 px-1 rounded-lg text-[10px] font-semibold transition-all cursor-pointer {activeTab === 'stores' ? 'bg-slate-800 text-emerald-400 border border-slate-700' : 'text-slate-400 hover:text-slate-200'}"
         >
-          <StoreIcon class="w-4 h-4 mb-0.5" />
+          <StoreIcon class="w-3.5 h-3.5 mb-0.5" />
           <span>Lojas</span>
         </button>
       </nav>

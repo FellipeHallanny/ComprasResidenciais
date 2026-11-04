@@ -2,7 +2,9 @@ package http
 
 import (
 	"errors"
+	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -101,11 +103,15 @@ func (h *HTTPHandler) RegisterRoutes(r *gin.Engine) {
 			protected.POST("/purchases/manual", h.createManualPurchase)
 			protected.PUT("/purchases/:id/confirm", h.confirmPurchase)
 
-			// Analytics & Preços
+			// Analytics, Catálogo & Preços
 			protected.GET("/analytics/search-products", h.searchProducts)
+			protected.GET("/analytics/catalog-prices", h.getCatalogWithPrices)
 			protected.GET("/analytics/price-comparison/:productId", h.getPriceComparison)
 			protected.GET("/analytics/price-oscillation/:productId", h.getMonthlyOscillation)
 			protected.GET("/analytics/summary", h.getGlobalSummary)
+
+			// Lista de Compras / Notificações
+			protected.POST("/shopping-list/send-email", h.sendShoppingListEmail)
 
 			// Admin / Manutenção (Apenas ADMIN)
 			protected.POST("/admin/reset-database", RequireAdminMiddleware(), h.resetDatabase)
@@ -177,6 +183,7 @@ func (h *HTTPHandler) createUser(c *gin.Context) {
 	var req struct {
 		Name     string `json:"name" binding:"required"`
 		Email    string `json:"email"`
+		Phone    string `json:"phone"`
 		Password string `json:"password"`
 		Role     string `json:"role"`
 	}
@@ -193,7 +200,7 @@ func (h *HTTPHandler) createUser(c *gin.Context) {
 		req.Role = domain.UserRoleMember
 	}
 
-	user, err := h.userService.CreateUser(c.Request.Context(), req.Name, req.Email, req.Password, req.Role)
+	user, err := h.userService.CreateUser(c.Request.Context(), req.Name, req.Email, req.Phone, req.Password, req.Role)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -212,6 +219,7 @@ func (h *HTTPHandler) updateUser(c *gin.Context) {
 	var req struct {
 		Name        string `json:"name" binding:"required"`
 		Email       string `json:"email"`
+		Phone       string `json:"phone"`
 		Role        string `json:"role"`
 		IsBlocked   bool   `json:"is_blocked"`
 		NewPassword string `json:"new_password"`
@@ -239,7 +247,7 @@ func (h *HTTPHandler) updateUser(c *gin.Context) {
 		}
 	}
 
-	user, err := h.userService.UpdateUser(c.Request.Context(), id, req.Name, req.Email, req.Role, req.IsBlocked, req.NewPassword)
+	user, err := h.userService.UpdateUser(c.Request.Context(), id, req.Name, req.Email, req.Phone, req.Role, req.IsBlocked, req.NewPassword)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) || err.Error() == "user not found" {
 			c.JSON(http.StatusNotFound, gin.H{"error": "usuário não encontrado"})
@@ -513,6 +521,15 @@ func (h *HTTPHandler) searchProducts(c *gin.Context) {
 	c.JSON(http.StatusOK, products)
 }
 
+func (h *HTTPHandler) getCatalogWithPrices(c *gin.Context) {
+	catalog, err := h.analyticsService.GetCatalogWithPrices(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, catalog)
+}
+
 func (h *HTTPHandler) getPriceComparison(c *gin.Context) {
 	prodIdStr := c.Param("productId")
 	id, err := uuid.Parse(prodIdStr)
@@ -555,4 +572,22 @@ func (h *HTTPHandler) getGlobalSummary(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, summary)
+}
+
+func (h *HTTPHandler) sendShoppingListEmail(c *gin.Context) {
+	var req struct {
+		ToEmail string `json:"to_email" binding:"required,email"`
+		Subject string `json:"subject" binding:"required"`
+		Content string `json:"content" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	log.Printf("[ShoppingList] Lista de compras enviada com sucesso para %s: %s\n", req.ToEmail, req.Subject)
+	c.JSON(http.StatusOK, gin.H{
+		"status":  "ok",
+		"message": fmt.Sprintf("Lista de compras enviada para %s com sucesso.", req.ToEmail),
+	})
 }

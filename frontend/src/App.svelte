@@ -23,10 +23,11 @@
   import PurchaseList from './components/PurchaseList.svelte';
   import HouseholdUsers from './components/HouseholdUsers.svelte';
   import StoresView from './components/StoresView.svelte';
+  import ShoppingListView from './components/ShoppingListView.svelte';
   import { Users, Store as StoreIcon, Sparkles, CheckCircle2 } from '@lucide/svelte';
 
   // Active view tab
-  let activeTab = $state<'dashboard' | 'purchases' | 'household' | 'stores'>('dashboard');
+  let activeTab = $state<'dashboard' | 'purchases' | 'shopping-list' | 'household' | 'stores'>('dashboard');
 
   // Modal open state
   let isPurchaseModalOpen = $state(false);
@@ -73,34 +74,33 @@
       loadingStores = false;
       loadingPurchases = false;
     }
-
-    // Try finding a default product to showcase
-    try {
-      const defaultProducts = await api.searchProducts('Arroz');
-      if (defaultProducts && defaultProducts.length > 0) {
-        handleProductSelect(defaultProducts[0]);
-      } else {
-        const anyProducts = await api.searchProducts('');
-        if (anyProducts && anyProducts.length > 0) {
-          handleProductSelect(anyProducts[0]);
-        }
-      }
-    } catch {
-      // ignore
-    }
   }
 
-  // Load details whenever a product is selected
+  // Refresh helper functions
+  async function refreshUsers() {
+    users = await api.getUsers().catch(() => []);
+  }
+
+  async function refreshStores() {
+    stores = await api.getStores().catch(() => []);
+  }
+
+  async function refreshPurchases() {
+    purchases = await api.getPurchases(50).catch(() => []);
+    summary = await api.getSummary().catch(() => null);
+  }
+
+  // Handle product selection from search
   async function handleProductSelect(product: CanonicalProduct) {
     selectedProduct = product;
     loadingProductDetails = true;
     try {
-      const [comp, osc] = await Promise.all([
-        api.getPriceComparison(product.id).catch(() => null),
-        api.getMonthlyOscillation(product.id).catch(() => null),
+      const [compRes, oscRes] = await Promise.all([
+        api.getPriceComparison(product.id),
+        api.getMonthlyOscillation(product.id),
       ]);
-      priceComparison = comp;
-      priceOscillation = osc;
+      priceComparison = compRes;
+      priceOscillation = oscRes;
     } catch (err) {
       console.error('Erro ao carregar detalhes do produto:', err);
     } finally {
@@ -108,95 +108,82 @@
     }
   }
 
-  // Refresh handlers
-  async function refreshPurchases() {
-    loadingPurchases = true;
-    try {
-      const res = await api.getPurchases(50);
-      purchases = Array.isArray(res) ? res : [];
-      summary = await api.getSummary().catch(() => null);
-      if (selectedProduct) {
-        handleProductSelect(selectedProduct);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      loadingPurchases = false;
-    }
-  }
-
-  async function refreshUsers() {
-    loadingUsers = true;
-    try {
-      const res = await api.getUsers();
-      users = Array.isArray(res) ? res : [];
-    } catch (err) {
-      console.error(err);
-    } finally {
-      loadingUsers = false;
-    }
-  }
-
-  async function refreshStores() {
-    loadingStores = true;
-    try {
-      const res = await api.getStores();
-      stores = Array.isArray(res) ? res : [];
-    } catch (err) {
-      console.error(err);
-    } finally {
-      loadingStores = false;
-    }
-  }
-
-  function handlePurchaseSuccess(p: Purchase) {
+  // When purchase is created or confirmed successfully
+  function handlePurchaseSuccess(purchase: Purchase) {
     isPurchaseModalOpen = false;
+    globalNotification = `Compra no valor de ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(purchase.total_amount)} registrada e confirmada com sucesso!`;
     refreshPurchases();
     refreshStores();
+    if (selectedProduct) {
+      handleProductSelect(selectedProduct);
+    }
+    setTimeout(() => {
+      globalNotification = null;
+    }, 6000);
   }
 
+  // Reset database (Only Admin)
   async function handleResetDatabase() {
     if (!auth.isAdmin) {
-      alert('Apenas administradores podem zerar o banco de dados.');
+      alert('Apenas administradores podem reiniciar o banco de dados.');
       return;
     }
-
-    const confirmation = confirm(
-      '⚠️ ATENÇÃO: Deseja realmente zerar todo o banco de dados?\n\nIsso removerá permanentemente todas as compras, itens, moradores e lojas cadastradas, deixando o sistema completamente limpo.'
-    );
-    if (!confirmation) return;
-
-    try {
-      const res = await api.resetDatabase();
-      globalNotification = res.message || 'Banco de dados reiniciado do zero com sucesso!';
-      selectedProduct = null;
-      priceComparison = null;
-      priceOscillation = null;
-      auth.logout();
-      await auth.init();
-    } catch (err: any) {
-      alert(`Erro ao reiniciar banco: ${err.message}`);
+    if (confirm('ATENÇÃO: Deseja realmente zerar todos os dados do banco de dados? Esta ação é irreversível e apagará todas as compras, notas, estabelecimentos e moradores.')) {
+      try {
+        await api.resetDatabase();
+        alert('Banco de dados reiniciado do zero com sucesso!');
+        auth.logout(); // desconecta após reset
+        window.location.reload();
+      } catch (err: any) {
+        alert('Falha ao reiniciar o banco: ' + (err.message || 'Erro desconhecido'));
+      }
     }
   }
 
   onMount(async () => {
+    // 1. Inicializa o estado de autenticação
     await auth.init();
+
+    // 2. Se autenticado, carrega os dados globais
     if (auth.isAuthenticated) {
+      await loadInitialData();
+      // Se não houver produto selecionado, busca o primeiro produto disponível
+      try {
+        const prods = await api.searchProducts('');
+        if (prods.length > 0) {
+          handleProductSelect(prods[0]);
+        }
+      } catch {
+        // ignore
+      }
+    }
+  });
+
+  // Reage a mudanças de autenticação
+  $effect(() => {
+    if (auth.isAuthenticated && users.length === 0 && !loadingUsers) {
       loadInitialData();
     }
   });
 </script>
 
 {#if auth.isLoading}
-  <div class="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4">
-    <div class="w-8 h-8 border-3 border-emerald-500 border-t-transparent rounded-full animate-spin mb-3"></div>
-    <p class="text-xs text-slate-400 font-medium">Carregando autenticação...</p>
+  <!-- Splash / Loading Inicial -->
+  <div class="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-slate-400">
+    <div class="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+    <span class="text-sm font-medium">Iniciando Compras Residenciais...</span>
   </div>
 {:else if !auth.isAuthenticated}
-  <LoginView onsuccess={loadInitialData} />
+  <!-- Tela de Login / Setup Inicial do Administrador -->
+  <LoginView
+    onsuccess={() => {
+      loadInitialData();
+    }}
+  />
 {:else}
-  <div class="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
-    <!-- Header / Navigation Bar -->
+  <!-- Aplicação Autenticada -->
+  <div class="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-emerald-500 selection:text-slate-950">
+    <!-- Header de Navegação Superior -->
     <Header
       {activeTab}
       onselectTab={(t) => (activeTab = t)}
@@ -293,6 +280,12 @@
           {users}
           loading={loadingPurchases}
           onrefresh={refreshPurchases}
+        />
+
+      {:else if activeTab === 'shopping-list'}
+        <!-- Catálogo de Itens & Gerador de Lista de Compras Inteligente -->
+        <ShoppingListView
+          {users}
         />
 
       {:else if activeTab === 'household'}
