@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"time"
 
+	_ "ComprasResidenciais/docs"
 	geminiAdapter "ComprasResidenciais/internal/adapters/ai/gemini"
 	httpHandler "ComprasResidenciais/internal/adapters/handlers/http"
 	pgRepo "ComprasResidenciais/internal/adapters/repositories/postgres"
@@ -19,8 +20,28 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
+// @title           Compras Residenciais API
+// @version         1.0
+// @description     API RESTful para controle de compras residenciais inteligentes com IA Gemini Multimodal, busca semântica pgvector e integração com NFC-e SEFAZ.
+// @termsOfService  http://swagger.io/terms/
+
+// @contact.name   Suporte Compras Residenciais
+// @contact.email  contato@comprasresidenciais.local
+
+// @license.name  MIT
+// @license.url   https://opensource.org/licenses/MIT
+
+// @host      localhost:8080
+// @BasePath  /api/v1
+
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Digite "Bearer " seguido do token JWT recebido no login (ex: Bearer eyJhbGci...).
 func main() {
 	cfg := config.LoadConfig()
 	ctx, cancel := context.WithCancel(context.Background())
@@ -102,6 +123,12 @@ func main() {
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.Default()
 
+	// Documentação Interativa Swagger / OpenAPI
+	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	router.GET("/docs", func(c *gin.Context) {
+		c.Redirect(http.StatusMovedPermanently, "/swagger/index.html")
+	})
+
 	handler := httpHandler.NewHTTPHandler(purchaseService, analyticsService, userService, authService, storeRepository, pool)
 	handler.RegisterRoutes(router)
 
@@ -128,6 +155,7 @@ func main() {
 	}()
 
 	log.Printf("Servidor HTTP REST ouvindo na porta %s (http://localhost:%s)", cfg.Port, cfg.Port)
+	log.Printf("Documentação Swagger UI disponível em http://localhost:%s/swagger/index.html", cfg.Port)
 	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatalf("listen: %s\n", err)
 	}

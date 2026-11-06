@@ -1,0 +1,1146 @@
+basePath: /api/v1
+definitions:
+  ComprasResidenciais_internal_core_domain.CanonicalProduct:
+    properties:
+      base_unit:
+        description: '"kg", "L", "un"'
+        type: string
+      category:
+        description: 'ex: "Grãos"'
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      name:
+        description: 'ex: "Arroz Branco"'
+        type: string
+      updated_at:
+        type: string
+    type: object
+  ComprasResidenciais_internal_core_domain.CatalogItemView:
+    properties:
+      base_unit:
+        type: string
+      category:
+        type: string
+      cheapest_package_info:
+        type: string
+      cheapest_purchase_date:
+        type: string
+      cheapest_store_address:
+        type: string
+      cheapest_store_id:
+        type: string
+      cheapest_store_name:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      last_purchased_at:
+        type: string
+      lowest_price_per_unit:
+        type: number
+      name:
+        type: string
+      total_purchases:
+        type: integer
+    type: object
+  ComprasResidenciais_internal_core_domain.GlobalSummaryView:
+    properties:
+      current_month_total:
+        type: number
+      spending_by_user:
+        additionalProperties:
+          type: number
+        type: object
+      top_stores:
+        items:
+          $ref: '#/definitions/ComprasResidenciais_internal_core_domain.StoreShareMetric'
+        type: array
+      total_purchases:
+        type: integer
+    type: object
+  ComprasResidenciais_internal_core_domain.LoginRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  ComprasResidenciais_internal_core_domain.LoginResponse:
+    properties:
+      token:
+        type: string
+      user:
+        $ref: '#/definitions/ComprasResidenciais_internal_core_domain.User'
+    type: object
+  ComprasResidenciais_internal_core_domain.MonthlyPriceOscillation:
+    properties:
+      base_unit:
+        type: string
+      canonical_product_id:
+        type: string
+      periods:
+        items:
+          $ref: '#/definitions/ComprasResidenciais_internal_core_domain.PeriodMetric'
+        type: array
+      product_name:
+        type: string
+    type: object
+  ComprasResidenciais_internal_core_domain.PeriodMetric:
+    properties:
+      average_price:
+        description: R$ por unidade base
+        type: number
+      period_label:
+        description: '"Dias 01-07", "Dias 08-14", etc.'
+        type: string
+      total_count:
+        type: integer
+    type: object
+  ComprasResidenciais_internal_core_domain.PriceComparisonView:
+    properties:
+      average_price_per_unit:
+        type: number
+      base_unit:
+        type: string
+      best_month_period:
+        description: 'ex: "Dias 15-21"'
+        type: string
+      canonical_product_id:
+        type: string
+      cheapest_purchase_date:
+        type: string
+      cheapest_store_name:
+        type: string
+      highest_price_per_unit:
+        type: number
+      lowest_price_per_unit:
+        type: number
+      max_savings_percentage:
+        type: number
+      product_name:
+        type: string
+      recent_purchases:
+        items:
+          $ref: '#/definitions/ComprasResidenciais_internal_core_domain.RecentItemPurchase'
+        type: array
+    type: object
+  ComprasResidenciais_internal_core_domain.Purchase:
+    properties:
+      created_at:
+        type: string
+      fiscal_key:
+        type: string
+      id:
+        type: string
+      items:
+        items:
+          $ref: '#/definitions/ComprasResidenciais_internal_core_domain.PurchaseItem'
+        type: array
+      origin:
+        $ref: '#/definitions/ComprasResidenciais_internal_core_domain.PurchaseOrigin'
+      purchased_at:
+        type: string
+      status:
+        $ref: '#/definitions/ComprasResidenciais_internal_core_domain.PurchaseStatus'
+      store_id:
+        type: string
+      total_amount:
+        type: number
+      updated_at:
+        type: string
+      user_id:
+        type: string
+    type: object
+  ComprasResidenciais_internal_core_domain.PurchaseItem:
+    properties:
+      canonical_product_id:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      normalized_price:
+        description: 'TotalPrice / TotalUnits (ex: 4.78/kg)'
+        type: number
+      package_size:
+        description: 'ex: 5.0 (tamanho contido no pacote)'
+        type: number
+      package_unit:
+        description: 'ex: "kg", "g", "L", "ml", "un"'
+        type: string
+      purchase_id:
+        type: string
+      quantity:
+        description: 'ex: 1.0 (pacote)'
+        type: number
+      raw_description:
+        description: 'ex: "ARROZ TIPO 1 TJ 5KG"'
+        type: string
+      total_price:
+        description: 'ex: 23.90'
+        type: number
+      total_units:
+        description: 'ex: 5.0 (em kg ou L)'
+        type: number
+      unit_price:
+        description: 'TotalPrice / Quantity (ex: 23.90/un)'
+        type: number
+      updated_at:
+        type: string
+    type: object
+  ComprasResidenciais_internal_core_domain.PurchaseOrigin:
+    enum:
+    - LLM
+    - SEFAZ
+    - MANUAL
+    type: string
+    x-enum-varnames:
+    - PurchaseOriginLLM
+    - PurchaseOriginSefaz
+    - PurchaseOriginManual
+  ComprasResidenciais_internal_core_domain.PurchaseStatus:
+    enum:
+    - DRAFT
+    - CONFIRMED
+    type: string
+    x-enum-varnames:
+    - PurchaseStatusDraft
+    - PurchaseStatusConfirmed
+  ComprasResidenciais_internal_core_domain.RecentItemPurchase:
+    properties:
+      buyer_name:
+        type: string
+      normalized_price:
+        type: number
+      package_info:
+        description: 'ex: "1x 5kg"'
+        type: string
+      purchase_id:
+        type: string
+      purchased_at:
+        type: string
+      raw_description:
+        type: string
+      store_name:
+        type: string
+      total_price:
+        type: number
+    type: object
+  ComprasResidenciais_internal_core_domain.SetupAdminRequest:
+    properties:
+      email:
+        type: string
+      name:
+        type: string
+      password:
+        minLength: 6
+        type: string
+    required:
+    - email
+    - name
+    - password
+    type: object
+  ComprasResidenciais_internal_core_domain.Store:
+    properties:
+      address:
+        type: string
+      cnpj:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  ComprasResidenciais_internal_core_domain.StoreShareMetric:
+    properties:
+      percentage:
+        type: number
+      store_name:
+        type: string
+      total_spent:
+        type: number
+    type: object
+  ComprasResidenciais_internal_core_domain.User:
+    properties:
+      created_at:
+        type: string
+      email:
+        type: string
+      id:
+        type: string
+      is_blocked:
+        type: boolean
+      name:
+        type: string
+      phone:
+        type: string
+      role:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  internal_adapters_handlers_http.CreateUserRequest:
+    properties:
+      email:
+        example: carlos@email.com
+        type: string
+      name:
+        example: Carlos Silva
+        type: string
+      password:
+        example: senha123
+        type: string
+      phone:
+        example: "11988887777"
+        type: string
+      role:
+        example: MEMBER
+        type: string
+    required:
+    - name
+    type: object
+  internal_adapters_handlers_http.ErrorResponse:
+    properties:
+      error:
+        example: mensagem detalhada do erro
+        type: string
+    type: object
+  internal_adapters_handlers_http.MessageResponse:
+    properties:
+      message:
+        example: Operação executada com sucesso
+        type: string
+      status:
+        example: ok
+        type: string
+    type: object
+  internal_adapters_handlers_http.ProcessFiscalKeyRequest:
+    properties:
+      fiscal_key:
+        example: "35240100000000000000650010000000011000000018"
+        type: string
+    required:
+    - fiscal_key
+    type: object
+  internal_adapters_handlers_http.SendShoppingListEmailRequest:
+    properties:
+      content:
+        example: |-
+          Itens recomendados:
+          - Arroz Tipo 1
+          - Feijão Carioca
+        type: string
+      subject:
+        example: Lista de Compras da Residência
+        type: string
+      to_email:
+        example: morador@email.com
+        type: string
+    required:
+    - content
+    - subject
+    - to_email
+    type: object
+  internal_adapters_handlers_http.StoreRequest:
+    properties:
+      address:
+        example: Av. Paulista, 1000 - Bela Vista, São Paulo - SP
+        type: string
+      cnpj:
+        example: 47.508.411/0001-56
+        type: string
+      name:
+        example: Supermercado Pão de Açúcar
+        type: string
+    required:
+    - name
+    type: object
+  internal_adapters_handlers_http.UpdateUserRequest:
+    properties:
+      email:
+        example: carlos@email.com
+        type: string
+      is_blocked:
+        example: false
+        type: boolean
+      name:
+        example: Carlos Silva
+        type: string
+      new_password:
+        example: novaSenha123
+        type: string
+      phone:
+        example: "11988887777"
+        type: string
+      role:
+        example: MEMBER
+        type: string
+    required:
+    - name
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: contato@comprasresidenciais.local
+    name: Suporte Compras Residenciais
+  description: API RESTful para controle de compras residenciais inteligentes com
+    IA Gemini Multimodal, busca semântica pgvector e integração com NFC-e SEFAZ.
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  termsOfService: http://swagger.io/terms/
+  title: Compras Residenciais API
+  version: "1.0"
+paths:
+  /admin/reset-database:
+    post:
+      description: Efetua truncate em cascata de todas as tabelas operacionais (Requer
+        ADMIN)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_adapters_handlers_http.MessageResponse'
+        "403":
+          description: Requer ADMIN
+          schema:
+            $ref: '#/definitions/internal_adapters_handlers_http.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_adapters_handlers_http.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Reiniciar banco de dados
+      tags:
+      - Admin
+  /analytics/catalog-prices:
+    get:
+      description: Retorna todos os produtos canônicos com menor preço unitário registrado
+        e estabelecimento correspondente
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/ComprasResidenciais_internal_core_domain.CatalogItemView'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_adapters_handlers_http.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Catálogo de produtos com preços de referência
+      tags:
+      - Analytics
+  /analytics/price-comparison/{productId}:
+    get:
+      description: Compara preços do mesmo produto entre diferentes supermercados
+        e compras recentes
+      parameters:
+      - description: ID do produto canônico (UUID)
+        in: path
+        name: productId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ComprasResidenciais_internal_core_domain.PriceComparisonView'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_adapters_handlers_http.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_adapters_handlers_http.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Comparativo de preços de produto
+      tags:
+      - Analytics
+  /analytics/price-oscillation/{productId}:
+    get:
+      description: Retorna a média de preços de um produto ao longo de diferentes
+        semanas do mês
+      parameters:
+      - description: ID do produto canônico (UUID)
+        in: path
+        name: productId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ComprasResidenciais_internal_core_domain.MonthlyPriceOscillation'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_adapters_handlers_http.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_adapters_handlers_http.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Oscilação mensal de preços
+      tags:
+      - Analytics
+  /analytics/search-products:
+    get:
+      description: Busca produtos canônicos por similaridade de cosseno a partir de
+        embeddings gerados pelo modelo text-embedding-004 do Gemini
+      parameters:
+      - description: 'Termo de busca (ex: arroz, sabão em pó, leite)'
+        in: query
+        name: q
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/ComprasResidenciais_internal_core_domain.CanonicalProduct'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_adapters_handlers_http.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Busca semântica de produtos (pgvector)
+      tags:
+      - Analytics
+  /analytics/summary:
+    get:
+      description: Retorna indicadores consolidados da residência (gastos do mês,
+        divisão por morador, top estabelecimentos)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ComprasResidenciais_internal_core_domain.GlobalSummaryView'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_adapters_handlers_http.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Resumo analítico global
+      tags:
+      - Analytics
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Realiza login por e-mail e senha, retornando o token JWT e dados
+        do morador
+      parameters:
+      - description: Credenciais de acesso
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/ComprasResidenciais_internal_core_domain.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ComprasResidenciais_internal_core_domain.LoginResponse'
+        "400":
+          description: E-mail e senha são obrigatórios
+          schema:
+            $ref: '#/definitions/internal_adapters_handlers_http.ErrorResponse'
+        "401":
+          description: Credenciais inválidas
+          schema:
+            $ref: '#/definitions/internal_adapters_handlers_http.ErrorResponse'
+      summary: Autenticar morador
+      tags:
+      - Auth
+  /auth/me:
+    get:
+      description: Retorna as informações do morador autenticado via token JWT
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ComprasResidenciais_internal_core_domain.User'
+        "401":
+          description: Usuário não autenticado
+          schema:
+            $ref: '#/definitions/internal_adapters_handlers_http.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Obter perfil do usuário conectado
+      tags:
+      - Auth
+  /auth/setup-admin:
+    post:
+      consumes:
+      - application/json
+      description: Cadastra o primeiro morador com privilégios de administrador do
+        sistema (caso não exista nenhum)
+      parameters:
+      - description: Dados do primeiro administrador
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/ComprasResidenciais_internal_core_domain.SetupAdminRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/ComprasResidenciais_internal_core_domain.LoginResponse'
+        "400":
+          description: Dados inválidos ou admin já cadastrado
+          schema:
+            $ref: '#/definitions/internal_adapters_handlers_http.ErrorResponse'
+      summary: Cadastrar administrador inicial
+      tags:
+      - Auth
+  /auth/status:
+    get:
+      description: Verifica se o sistema já possui pelo menos um administrador cadastrado
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: boolean
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_adapters_handlers_http.ErrorResponse'
+      summary: Status de configuração de autenticação
+      tags:
+      - Auth
+  /health:
+    get:
+      description: Retorna o status operacional da aplicação e timestamp atual
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Health Check
+      tags:
+      - System
+  /purchases:
+    get:
+      description: Retorna a lista paginada de compras registradas
+      parameters:
+      - description: 'Quantidade de registros (padrão: 20)'
+        in: query
+        name: limit
+        type: integer
+      - description: 'Deslocamento para paginação (padrão: 0)'
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/ComprasResidenciais_internal_core_domain.Purchase'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_adapters_handlers_http.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Listar histórico de compras
+      tags:
+      - Purchases
+  /purchases/{id}:
+    get:
+      description: Retorna os dados completos de uma compra e seus itens pelo ID
+      parameters:
+      - description: ID da compra (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ComprasResidenciais_internal_core_domain.Purchase'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_adapters_handlers_http.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_adapters_handlers_http.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Obter detalhes da compra
+      tags:
+      - Purchases
+  /purchases/{id}/confirm:
+    put:
+      consumes:
+      - application/json
+      description: Valida e confirma o rascunho de compra revisado pelo morador, gerando
+        embeddings semânticos no pgvector para os produtos
+      parameters:
+      - description: ID da compra (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Dados revisados da compra
+        in: body
+        name: purchase
+        required: true
+        schema:
+          $ref: '#/definitions/ComprasResidenciais_internal_core_domain.Purchase'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ComprasResidenciais_internal_core_domain.Purchase'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_adapters_handlers_http.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Confirmar rascunho de compra
+      tags:
+      - Purchases
+  /purchases/manual:
+    post:
+      consumes:
+      - application/json
+      description: Registra uma compra manual (compras em feiras, sacolões ou sem
+        nota fiscal) com seus itens
+      parameters:
+      - description: Dados da compra manual
+        in: body
+        name: purchase
+        required: true
+        schema:
+          $ref: '#/definitions/ComprasResidenciais_internal_core_domain.Purchase'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/ComprasResidenciais_internal_core_domain.Purchase'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_adapters_handlers_http.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Cadastrar compra manual
+      tags:
+      - Purchases
+  /purchases/sefaz:
+    post:
+      consumes:
+      - application/json
+      description: Valida o dígito verificador módulo 11 de uma chave fiscal de 44
+        dígitos e consulta a nota eletrônica na SEFAZ
+      parameters:
+      - description: Chave fiscal de 44 dígitos
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_adapters_handlers_http.ProcessFiscalKeyRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/ComprasResidenciais_internal_core_domain.Purchase'
+        "400":
+          description: Chave inválida ou dígito verificador incorreto
+          schema:
+            $ref: '#/definitions/internal_adapters_handlers_http.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_adapters_handlers_http.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Consultar chave NFC-e na SEFAZ
+      tags:
+      - Purchases
+  /purchases/upload:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Faz upload de imagem (JPG, PNG, WebP, HEIC) ou PDF do cupom e realiza
+        extração multimodal inteligente de itens, quantidades e valores criando um
+        rascunho (Draft)
+      parameters:
+      - description: Arquivo de imagem ou PDF do cupom fiscal
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/ComprasResidenciais_internal_core_domain.Purchase'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_adapters_handlers_http.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_adapters_handlers_http.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Processar cupom fiscal com IA Gemini Vision
+      tags:
+      - Purchases
+  /shopping-list/send-email:
+    post:
+      consumes:
+      - application/json
+      description: Envia o conteúdo da lista de compras gerada para o e-mail do morador
+      parameters:
+      - description: Dados para envio da lista
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_adapters_handlers_http.SendShoppingListEmailRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_adapters_handlers_http.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_adapters_handlers_http.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Enviar lista de compras por e-mail
+      tags:
+      - ShoppingList
+  /stores:
+    get:
+      description: Retorna todos os estabelecimentos comerciais e supermercados cadastrados
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/ComprasResidenciais_internal_core_domain.Store'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_adapters_handlers_http.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Listar estabelecimentos
+      tags:
+      - Stores
+    post:
+      consumes:
+      - application/json
+      description: Cadastra ou localiza um estabelecimento comercial por nome e CNPJ
+      parameters:
+      - description: Dados do estabelecimento
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_adapters_handlers_http.StoreRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/ComprasResidenciais_internal_core_domain.Store'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_adapters_handlers_http.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_adapters_handlers_http.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Cadastrar estabelecimento
+      tags:
+      - Stores
+  /stores/{id}:
+    delete:
+      description: Remove um estabelecimento comercial
+      parameters:
+      - description: ID do estabelecimento (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_adapters_handlers_http.MessageResponse'
+        "404":
+          description: Estabelecimento não encontrado
+          schema:
+            $ref: '#/definitions/internal_adapters_handlers_http.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_adapters_handlers_http.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Excluir estabelecimento
+      tags:
+      - Stores
+    put:
+      consumes:
+      - application/json
+      description: Atualiza os dados de um estabelecimento comercial (nome, CNPJ,
+        endereço)
+      parameters:
+      - description: ID do estabelecimento (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Dados atualizados do estabelecimento
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_adapters_handlers_http.StoreRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ComprasResidenciais_internal_core_domain.Store'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_adapters_handlers_http.ErrorResponse'
+        "404":
+          description: Estabelecimento não encontrado
+          schema:
+            $ref: '#/definitions/internal_adapters_handlers_http.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_adapters_handlers_http.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Atualizar estabelecimento
+      tags:
+      - Stores
+  /users:
+    get:
+      description: Retorna todos os moradores cadastrados na residência
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/ComprasResidenciais_internal_core_domain.User'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_adapters_handlers_http.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Listar moradores
+      tags:
+      - Users
+    post:
+      consumes:
+      - application/json
+      description: Cadastra um novo morador na residência. Apenas administradores
+        podem atribuir papel de ADMIN.
+      parameters:
+      - description: Dados do morador
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_adapters_handlers_http.CreateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/ComprasResidenciais_internal_core_domain.User'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_adapters_handlers_http.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_adapters_handlers_http.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Cadastrar novo morador
+      tags:
+      - Users
+  /users/{id}:
+    delete:
+      description: Remove um morador da residência. Requer perfil de ADMIN.
+      parameters:
+      - description: ID do usuário (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_adapters_handlers_http.MessageResponse'
+        "403":
+          description: Apenas administradores
+          schema:
+            $ref: '#/definitions/internal_adapters_handlers_http.ErrorResponse'
+        "404":
+          description: Usuário não encontrado
+          schema:
+            $ref: '#/definitions/internal_adapters_handlers_http.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_adapters_handlers_http.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Excluir morador
+      tags:
+      - Users
+    put:
+      consumes:
+      - application/json
+      description: Atualiza dados cadastrais, bloqueio ou senha do morador. Alterações
+        de papel e bloqueio exigem papel de ADMIN.
+      parameters:
+      - description: ID do usuário (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Dados para atualização
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_adapters_handlers_http.UpdateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ComprasResidenciais_internal_core_domain.User'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_adapters_handlers_http.ErrorResponse'
+        "403":
+          description: Apenas administradores podem alterar permissões ou bloquear
+          schema:
+            $ref: '#/definitions/internal_adapters_handlers_http.ErrorResponse'
+        "404":
+          description: Usuário não encontrado
+          schema:
+            $ref: '#/definitions/internal_adapters_handlers_http.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_adapters_handlers_http.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Atualizar dados do morador
+      tags:
+      - Users
+securityDefinitions:
+  BearerAuth:
+    description: 'Digite "Bearer " seguido do token JWT recebido no login (ex: Bearer
+      eyJhbGci...).'
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

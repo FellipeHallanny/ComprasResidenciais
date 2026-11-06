@@ -86,3 +86,47 @@ func TestPurchaseItem_NormalizeUnits_MillilitersConversion(t *testing.T) {
 		t.Errorf("expected NormalizedPrice 4.00, got %f", item.NormalizedPrice)
 	}
 }
+
+func TestValidateFiscalKey(t *testing.T) {
+	// Chave real válida com DV 8 (UF 35 = SP, 24 = 2024, 01 = Janeiro)
+	validKey := "35240100000000000000650010000000011000000018"
+	if !domain.ValidateFiscalKey(validKey) {
+		t.Errorf("expected validKey %s to be valid", validKey)
+	}
+
+	// Chave com formatação / espaços deve ser aceita
+	formattedKey := "3524 0100 0000 0000 0000 6500 1000 0000 0110 0000 0018"
+	if !domain.ValidateFiscalKey(formattedKey) {
+		t.Errorf("expected formattedKey %s to be valid", formattedKey)
+	}
+
+	// Dígito verificador incorreto (DV alterado para 9)
+	invalidDV := "35240100000000000000650010000000011000000019"
+	if domain.ValidateFiscalKey(invalidDV) {
+		t.Errorf("expected invalidDV %s to be rejected", invalidDV)
+	}
+
+	// Sequência com tamanho diferente de 44
+	shortKey := "352401000000000000006500100000000110000000"
+	if domain.ValidateFiscalKey(shortKey) {
+		t.Errorf("expected shortKey %s to be rejected", shortKey)
+	}
+
+	// Sequência de zeros repetidos
+	allZeros := "00000000000000000000000000000000000000000000"
+	if domain.ValidateFiscalKey(allZeros) {
+		t.Errorf("expected allZeros to be rejected")
+	}
+
+	// UF inexistente (ex: 99)
+	invalidUF := "99240100000000000000650010000000011000000018"
+	if domain.ValidateFiscalKey(invalidUF) {
+		t.Errorf("expected invalidUF to be rejected")
+	}
+
+	// Mês inválido (ex: mês 13)
+	invalidMonth := "35241300000000000000650010000000011000000018"
+	if domain.ValidateFiscalKey(invalidMonth) {
+		t.Errorf("expected invalidMonth to be rejected")
+	}
+}

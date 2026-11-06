@@ -13,10 +13,22 @@
     Calendar,
     Store,
     User as UserIcon,
-    ArrowRight
+    ArrowRight,
+    Camera,
+    QrCode,
+    CheckCircle2,
+    Building2,
+    MapPin
   } from '@lucide/svelte';
   import type { User, Store as StoreType, Purchase, PurchaseItem, CanonicalProduct } from '../types';
   import { api } from '../lib/api';
+  import QrCodeScannerModal from './QrCodeScannerModal.svelte';
+  import {
+    parseNfceFromText,
+    validateFiscalKeyCheckDigit,
+    formatCnpj,
+    type ParsedNfceInfo
+  } from '../lib/nfce';
 
   interface Props {
     users: User[];
@@ -43,8 +55,10 @@
   let selectedFile = $state<File | null>(null);
   let filePreview = $state<string | null>(null);
 
-  // --- Sefaz State ---
+  // --- Sefaz & QR Code Scanner State ---
   let fiscalKey = $state('');
+  let isQrScannerOpen = $state(false);
+  let scannedFiscalInfo = $state<ParsedNfceInfo | null>(null);
 
   // --- Manual / Review State ---
   let selectedUserId = $state('');
@@ -92,7 +106,7 @@
           searchResults = results;
         }
       } catch (err) {
-        console.error('Erro na busca sem�ntica pgvector:', err);
+        console.error('Erro na busca semântica pgvector:', err);
       } finally {
         isSearchingProduct = false;
       }
@@ -113,7 +127,7 @@
         searchResults = results;
       }
     } catch (err) {
-      console.error('Erro na busca sem�ntica pgvector:', err);
+      console.error('Erro na busca semântica pgvector:', err);
     } finally {
       isSearchingProduct = false;
     }
@@ -201,9 +215,13 @@
 
   // Submit SEFAZ Key
   async function submitSefaz() {
-    const cleaned = fiscalKey.replace(/\s+/g, '');
+    const cleaned = fiscalKey.replace(/\D/g, '');
     if (cleaned.length !== 44) {
-      errorMessage = 'A chave fiscal deve conter exatamente 44 d�gitos num�ricos.';
+      errorMessage = 'A chave fiscal deve conter exatamente 44 dígitos numéricos.';
+      return;
+    }
+    if (!validateFiscalKeyCheckDigit(cleaned)) {
+      errorMessage = 'Chave fiscal inválida: o dígito verificador (módulo 11) não confere.';
       return;
     }
     isSubmitting = true;
@@ -224,10 +242,54 @@
     }
   }
 
+  // Sincroniza metadados e seleção de loja quando o usuário edita manualmente a chave fiscal
+  function handleFiscalKeyInput(e: Event) {
+    const input = e.target as HTMLInputElement;
+    const value = input.value;
+    fiscalKey = value;
+    syncFiscalKeyMetadata(value);
+  }
+
+  function syncFiscalKeyMetadata(rawKey: string) {
+    const clean = rawKey.replace(/\D/g, '');
+    if (clean.length === 44 && validateFiscalKeyCheckDigit(clean)) {
+      const parsed = parseNfceFromText(clean);
+      scannedFiscalInfo = parsed;
+      if (parsed?.storeCnpj) {
+        const matched = storeList.find(s => s.cnpj && s.cnpj.replace(/\D/g, '') === parsed.storeCnpj);
+        selectedStoreId = matched ? matched.id : '';
+      } else {
+        selectedStoreId = '';
+      }
+    } else {
+      // Chave em edição, incompleta ou com dígito verificador inválido:
+      // descarta metadados e vínculo de loja anterior para não salvar dados incorretos
+      scannedFiscalInfo = null;
+      selectedStoreId = '';
+    }
+  }
+
+  // Handle QR Code Scanner Callback
+  function handleQrScan(info: ParsedNfceInfo) {
+    scannedFiscalInfo = info;
+    fiscalKey = info.formattedKey;
+    activeTab = 'sefaz';
+    errorMessage = '';
+
+    // Vincula automaticamente se a loja tiver o mesmo CNPJ.
+    // Se não houver loja correspondente, limpa selectedStoreId para não herdar de escaneamento anterior.
+    if (info.storeCnpj) {
+      const matched = storeList.find(s => s.cnpj && s.cnpj.replace(/\D/g, '') === info.storeCnpj);
+      selectedStoreId = matched ? matched.id : '';
+    } else {
+      selectedStoreId = '';
+    }
+  }
+
   // Prepare manual purchase
   function proceedToManualReview() {
     if (!selectedUserId) {
-      errorMessage = 'Selecione o morador respons�vel pela compra.';
+      errorMessage = 'Selecione o morador responsável pela compra.';
       return;
     }
     if (!selectedStoreId && !customStoreName.trim()) {
@@ -260,7 +322,7 @@
   // Final Confirmation
   async function handleConfirmAndSave() {
     if (!selectedUserId) {
-      errorMessage = 'Selecione o morador comprador (obrigat�rio).';
+      errorMessage = 'Selecione o morador comprador (obrigatório).';
       return;
     }
 
@@ -271,11 +333,11 @@
 
     for (const it of editableItems) {
       if (!it.raw_description.trim()) {
-        errorMessage = 'Todos os itens precisam de uma descri��o v�lida.';
+        errorMessage = 'Todos os itens precisam de uma descrição válida.';
         return;
       }
       if (it.total_price <= 0) {
-        errorMessage = `Pre�o inv�lido para o item "${it.raw_description}".`;
+        errorMessage = `Preço inválido para o item "${it.raw_description}".`;
         return;
       }
     }
@@ -284,9 +346,15 @@
     errorMessage = '';
 
     try {
+      const cleanKey = fiscalKey.replace(/\D/g, '');
+      const currentFiscalInfo = (cleanKey.length === 44 && validateFiscalKeyCheckDigit(cleanKey))
+        ? parseNfceFromText(cleanKey)
+        : null;
+
       let finalStoreId = selectedStoreId;
       if (!finalStoreId && customStoreName.trim()) {
-        const newStore = await api.createStore(customStoreName.trim());
+        const cnpjToUse = currentFiscalInfo?.formattedCnpj || (currentFiscalInfo?.storeCnpj ? formatCnpj(currentFiscalInfo.storeCnpj) : '');
+        const newStore = await api.createStore(customStoreName.trim(), cnpjToUse);
         finalStoreId = newStore.id;
       }
 
@@ -297,6 +365,7 @@
           purchased_at: new Date(purchaseDate).toISOString(),
           total_amount: reviewTotal,
           items: editableItems,
+          fiscal_key: cleanKey || draftPurchase.fiscal_key,
         };
         const confirmed = await api.confirmPurchase(draftPurchase.id, payload);
         onsuccess(confirmed);
@@ -307,6 +376,7 @@
           purchased_at: new Date(purchaseDate).toISOString(),
           total_amount: reviewTotal,
           items: editableItems,
+          fiscal_key: cleanKey,
         };
         const created = await api.createManualPurchase(payload);
         onsuccess(created);
@@ -336,21 +406,35 @@
         </div>
         <div>
           <h2 class="text-lg font-bold text-white">
-            {step === 'review' ? 'Confer�ncia do Rascunho de Compra' : 'Registrar Nova Compra'}
+            {step === 'review' ? 'Conferência do Rascunho de Compra' : 'Registrar Nova Compra'}
           </h2>
           <p class="text-xs text-slate-400">
-            {step === 'review' ? 'Revise os itens extra�dos e vincule o morador antes de salvar' : 'Selecione o m�todo de captura da nota fiscal'}
+            {step === 'review' ? 'Revise os itens extraídos e vincule o morador antes de salvar' : 'Selecione o método de captura da nota fiscal'}
           </p>
         </div>
       </div>
 
-      <button
-        onclick={onclose}
-        class="text-slate-400 hover:text-slate-200 p-2 rounded-lg hover:bg-slate-800 transition cursor-pointer"
-        title="Fechar"
-      >
-        <X class="w-5 h-5" />
-      </button>
+      <div class="flex items-center gap-2">
+        {#if step === 'input'}
+          <button
+            type="button"
+            onclick={() => { isQrScannerOpen = true; }}
+            class="px-3 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
+            title="Escanear QR Code da NFC-e"
+          >
+            <Camera class="w-3.5 h-3.5" />
+            <span class="hidden sm:inline">Ler QR Code</span>
+          </button>
+        {/if}
+
+        <button
+          onclick={onclose}
+          class="text-slate-400 hover:text-slate-200 p-2 rounded-lg hover:bg-slate-800 transition cursor-pointer"
+          title="Fechar"
+        >
+          <X class="w-5 h-5" />
+        </button>
+      </div>
     </div>
 
     <!-- Empty Users Notice -->
@@ -386,7 +470,7 @@
             class="flex items-center gap-2 px-5 py-3 font-semibold text-sm border-b-2 transition cursor-pointer {activeTab === 'sefaz' ? 'border-emerald-500 text-emerald-400' : 'border-transparent text-slate-400 hover:text-slate-200'}"
           >
             <Key class="w-4 h-4" />
-            <span>Chave SEFAZ / NFC-e</span>
+            <span>Chave SEFAZ / QR Code</span>
           </button>
 
           <button
@@ -401,6 +485,24 @@
         <!-- Tab 1: Upload de Cupom -->
         {#if activeTab === 'upload'}
           <div class="space-y-4">
+            <!-- Atalho Rápido para Leitor de QR Code -->
+            <div class="flex flex-wrap items-center justify-between gap-3 p-3 bg-slate-950/70 border border-slate-800 rounded-2xl">
+              <div class="flex items-center gap-2 text-xs text-slate-300">
+                <div class="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400">
+                  <QrCode class="w-4 h-4" />
+                </div>
+                <span>Tem o cupom físico em mãos com QR Code impresso?</span>
+              </div>
+              <button
+                type="button"
+                onclick={() => { isQrScannerOpen = true; }}
+                class="px-3.5 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
+              >
+                <Camera class="w-3.5 h-3.5" />
+                <span>Escanear com a Câmera</span>
+              </button>
+            </div>
+
             <div class="border-2 border-dashed border-slate-700 hover:border-emerald-500/60 rounded-2xl p-8 text-center transition bg-slate-950/40 relative">
               <input
                 type="file"
@@ -423,14 +525,14 @@
                 {selectedFile ? selectedFile.name : 'Arraste ou clique para selecionar a foto ou PDF do cupom'}
               </h4>
               <p class="text-xs text-slate-400 mt-1">
-                Suporta fotos tiradas pelo celular (JPG, PNG) ou notas fiscais eletr�nicas em PDF.
+                Suporta fotos tiradas pelo celular (JPG, PNG) ou notas fiscais eletrônicas em PDF.
               </p>
             </div>
 
             <div class="flex items-center justify-between pt-4">
               <div class="flex items-center gap-2 text-xs text-slate-400">
                 <Sparkles class="w-4 h-4 text-emerald-400" />
-                <span>Extra��o multimodal autom�tica de itens, quantidades e valores via Gemini</span>
+                <span>Extração multimodal automática de itens, quantidades e valores via Gemini</span>
               </div>
 
               <button
@@ -450,30 +552,98 @@
           </div>
         {/if}
 
-        <!-- Tab 2: Chave SEFAZ -->
+        <!-- Tab 2: Chave SEFAZ / QR Code -->
         {#if activeTab === 'sefaz'}
-          <div class="space-y-4 max-w-xl mx-auto py-4">
+          <div class="space-y-5 max-w-xl mx-auto py-2">
+            <!-- Hero Card: Leitura Instantânea com Câmera -->
+            <div class="p-4 rounded-2xl bg-gradient-to-r from-emerald-950/40 via-slate-900 to-slate-950 border border-emerald-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-lg shadow-emerald-500/5">
+              <div class="flex items-start gap-3">
+                <div class="h-10 w-10 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/30 mt-0.5 sm:mt-0">
+                  <Camera class="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 class="text-sm font-bold text-white flex items-center gap-2">
+                    <span>Leitor de QR Code de Cupom</span>
+                    <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                      Zero Digitação
+                    </span>
+                  </h4>
+                  <p class="text-xs text-slate-400 mt-0.5">
+                    Aponte a câmera do celular para o QR Code impresso no cupom da SEFAZ para preencher tudo em 1 segundo.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onclick={() => { isQrScannerOpen = true; }}
+                class="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 cursor-pointer transition shrink-0 hover:scale-[1.02]"
+              >
+                <QrCode class="w-4 h-4 stroke-[2.5]" />
+                <span>Abrir Câmera</span>
+              </button>
+            </div>
+
+            <!-- Card de Confirmação do QR Code Lido (se houver) -->
+            {#if scannedFiscalInfo}
+              <div class="p-4 rounded-2xl bg-emerald-950/20 border border-emerald-500/40 text-xs space-y-2 animate-in fade-in">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-2 text-emerald-400 font-bold">
+                    <CheckCircle2 class="w-4 h-4" />
+                    <span>QR Code Fiscal Lido com Sucesso</span>
+                  </div>
+                  <span class="text-[10px] text-slate-400 font-mono">
+                    Estado: <strong class="text-emerald-300">{scannedFiscalInfo.stateUf}</strong>
+                  </span>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2 text-[11px] text-slate-300 pt-1">
+                  {#if scannedFiscalInfo.formattedCnpj}
+                    <div class="flex items-center gap-1">
+                      <Building2 class="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                      <span class="font-mono text-slate-200">{scannedFiscalInfo.formattedCnpj}</span>
+                    </div>
+                  {/if}
+                  {#if scannedFiscalInfo.issueYearMonth}
+                    <div class="flex items-center gap-1">
+                      <Calendar class="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                      <span>{scannedFiscalInfo.issueYearMonth}</span>
+                    </div>
+                  {/if}
+                </div>
+              </div>
+            {/if}
+
+            <!-- Campo de Input Manual da Chave de 44 Dígitos -->
             <div>
               <label for="sefaz-key-input" class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">
-                Chave de Acesso da NFC-e / NF-e (44 d�gitos)
+                Chave de Acesso da NFC-e / NF-e (44 dígitos)
               </label>
               <input
                 id="sefaz-key-input"
                 type="text"
                 maxlength="54"
                 bind:value={fiscalKey}
+                oninput={handleFiscalKeyInput}
                 placeholder="Ex: 3524 0100 0000 0000 0000 6500 1000 0000 0010 0000 0000"
                 class="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 font-mono text-sm tracking-widest placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
               />
-              <p class="text-xs text-slate-500 mt-1.5">
-                Localizada no topo ou rodap� do cupom fiscal pr�ximo ao QR-Code.
-              </p>
+              {#if fiscalKey.replace(/\D/g, '').length === 44 && !validateFiscalKeyCheckDigit(fiscalKey)}
+                <p class="text-xs text-rose-400 mt-1.5 flex items-center gap-1">
+                  <AlertCircle class="w-3.5 h-3.5 shrink-0" />
+                  <span>Dígito verificador inválido (módulo 11). Confira se todos os dígitos foram digitados corretamente.</span>
+                </p>
+              {:else}
+                <p class="text-xs text-slate-500 mt-1.5">
+                  Localizada no topo ou rodapé do cupom fiscal próximo ao QR-Code.
+                </p>
+              {/if}
             </div>
 
             <div class="pt-2 flex justify-end">
               <button
                 onclick={submitSefaz}
-                disabled={fiscalKey.replace(/\s+/g, '').length !== 44 || isSubmitting}
+                disabled={fiscalKey.replace(/\D/g, '').length !== 44 || !validateFiscalKeyCheckDigit(fiscalKey) || isSubmitting}
                 class="px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 font-bold text-sm shadow-md transition flex items-center gap-2 cursor-pointer"
               >
                 {#if isSubmitting}
@@ -547,7 +717,7 @@
                 onclick={proceedToManualReview}
                 class="px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm shadow-md transition flex items-center gap-2 cursor-pointer"
               >
-                <span>Avan�ar para Lista de Itens</span>
+                <span>Avançar para Lista de Itens</span>
                 <ArrowRight class="w-4 h-4" />
               </button>
             </div>
@@ -555,7 +725,7 @@
         {/if}
 
       {:else}
-        <!-- Step 2: Tela de Confer�ncia do Rascunho (Draft Review) -->
+        <!-- Step 2: Tela de Conferência do Rascunho (Draft Review) -->
         <div class="space-y-5">
           <!-- Metadata Bar -->
           <div class="p-4 rounded-2xl bg-slate-950 border border-slate-800 grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -630,11 +800,11 @@
               <table class="w-full text-left text-xs">
                 <thead class="bg-slate-950 text-slate-400 uppercase font-semibold border-b border-slate-800 sticky top-0 z-20">
                   <tr>
-                    <th class="px-3 py-2.5">Descri��o do Item</th>
+                    <th class="px-3 py-2.5">Descrição do Item</th>
                     <th class="px-3 py-2.5 w-16">Qtd</th>
                     <th class="px-3 py-2.5 w-24">Emb. (Tam)</th>
                     <th class="px-3 py-2.5 w-20">Unidade</th>
-                    <th class="px-3 py-2.5 w-28 text-right">Pre�o Total</th>
+                    <th class="px-3 py-2.5 w-28 text-right">Preço Total</th>
                     <th class="px-3 py-2.5 w-28 text-right text-emerald-400">Normalizado</th>
                     <th class="px-2 py-2.5 w-8"></th>
                   </tr>
@@ -655,14 +825,14 @@
                                 activeSearchIndex = idx;
                               }
                             }}
-                            placeholder="Nome / Descri��o da nota"
+                            placeholder="Nome / Descrição da nota"
                             class="w-full pl-2 pr-7 py-1.5 bg-slate-950 border {item.canonical_product_id ? 'border-emerald-500/60 ring-1 ring-emerald-500/30' : 'border-slate-700'} rounded text-slate-100 text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none"
                           />
                           <button
                             type="button"
                             onclick={() => triggerItemSearch(idx)}
                             class="absolute right-1 text-slate-400 hover:text-emerald-400 p-1 rounded transition cursor-pointer"
-                            title="Buscar produtos j� cadastrados com pgvector"
+                            title="Buscar produtos já cadastrados com pgvector"
                           >
                             <Sparkles class="w-3.5 h-3.5 {isSearchingProduct && activeSearchIndex === idx ? 'animate-spin text-emerald-400' : (item.canonical_product_id ? 'text-emerald-400' : '')}" />
                           </button>
@@ -676,9 +846,9 @@
                               type="button"
                               onclick={() => { item.canonical_product_id = undefined; }}
                               class="text-slate-500 hover:text-rose-400 ml-0.5 cursor-pointer"
-                              title="Desvincular produto can�nico"
+                              title="Desvincular produto canônico"
                             >
-                              �
+                              &times;
                             </button>
                           </div>
                         {/if}
@@ -688,13 +858,13 @@
                           <div class="absolute z-50 left-3 {openUpwards ? 'bottom-full mb-1' : 'top-full mt-1'} w-72 sm:w-80 bg-slate-900 border border-emerald-500/50 rounded-xl shadow-2xl overflow-hidden">
                             <div class="p-2 bg-slate-950 border-b border-slate-800 flex items-center justify-between text-[11px] text-slate-400">
                               <span class="flex items-center gap-1.5 text-emerald-400 font-semibold">
-                                <Sparkles class="w-3 h-3" /> Cat�logo Inteligente (pgvector)
+                                <Sparkles class="w-3 h-3" /> Catálogo Inteligente (pgvector)
                               </span>
                               <button
                                 type="button"
                                 onclick={() => { activeSearchIndex = null; }}
                                 class="text-slate-500 hover:text-slate-300 cursor-pointer"
-                                title="Fechar sugest�es"
+                                title="Fechar sugestões"
                               >
                                 <X class="w-3.5 h-3.5" />
                               </button>
@@ -709,7 +879,7 @@
                               {:else if searchResults.length === 0}
                                 <div class="p-3 text-center text-xs text-slate-400">
                                   <span>Nenhum produto similar encontrado.</span>
-                                  <p class="text-[10px] text-slate-500 mt-0.5">Um novo produto can�nico e vetor ser�o gerados ao salvar.</p>
+                                  <p class="text-[10px] text-slate-500 mt-0.5">Um novo produto canônico e vetor serão gerados ao salvar.</p>
                                 </div>
                               {:else}
                                 {#each searchResults as product}
@@ -724,7 +894,7 @@
                                       </div>
                                       <div class="text-[10px] text-slate-500 flex items-center gap-1.5 mt-0.5">
                                         <span class="truncate">{product.category || 'Geral'}</span>
-                                        <span>�</span>
+                                        <span>•</span>
                                         <span class="text-slate-400">Base: <strong class="text-slate-300 font-mono">{product.base_unit}</strong></span>
                                       </div>
                                     </div>
@@ -833,3 +1003,11 @@
     </div>
   </div>
 </div>
+
+<!-- Modal Flutuante do Scanner de QR Code -->
+{#if isQrScannerOpen}
+  <QrCodeScannerModal
+    onclose={() => { isQrScannerOpen = false; }}
+    onscan={handleQrScan}
+  />
+{/if}

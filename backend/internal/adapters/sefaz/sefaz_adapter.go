@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"ComprasResidenciais/internal/core/domain"
 	"ComprasResidenciais/internal/core/ports"
 )
 
@@ -30,8 +31,8 @@ func NewSefazAdapter(certPath, certPassword string) *SefazAdapter {
 // ConsultarChave consulta os dados completos da nota fiscal através da chave de 44 dígitos
 func (a *SefazAdapter) ConsultarChave(ctx context.Context, chaveNFe string) (*ports.ParsedReceipt, error) {
 	chave := strings.TrimSpace(chaveNFe)
-	if len(chave) != 44 {
-		return nil, fmt.Errorf("chave de acesso inválida (esperado 44 dígitos, recebido %d)", len(chave))
+	if !domain.ValidateFiscalKey(chave) {
+		return nil, fmt.Errorf("chave de acesso inválida: deve conter 44 dígitos numéricos com UF, mês e dígito verificador (módulo 11) válidos")
 	}
 
 	if !a.isConfigured {

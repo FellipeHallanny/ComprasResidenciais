@@ -1,0 +1,1731 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "API RESTful para controle de compras residenciais inteligentes com IA Gemini Multimodal, busca semântica pgvector e integração com NFC-e SEFAZ.",
+        "title": "Compras Residenciais API",
+        "termsOfService": "http://swagger.io/terms/",
+        "contact": {
+            "name": "Suporte Compras Residenciais",
+            "email": "contato@comprasresidenciais.local"
+        },
+        "license": {
+            "name": "MIT",
+            "url": "https://opensource.org/licenses/MIT"
+        },
+        "version": "1.0"
+    },
+    "host": "localhost:8080",
+    "basePath": "/api/v1",
+    "paths": {
+        "/admin/reset-database": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Efetua truncate em cascata de todas as tabelas operacionais (Requer ADMIN)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Reiniciar banco de dados",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_adapters_handlers_http.MessageResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Requer ADMIN",
+                        "schema": {
+                            "$ref": "#/definitions/internal_adapters_handlers_http.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_adapters_handlers_http.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/analytics/catalog-prices": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retorna todos os produtos canônicos com menor preço unitário registrado e estabelecimento correspondente",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Analytics"
+                ],
+                "summary": "Catálogo de produtos com preços de referência",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/ComprasResidenciais_internal_core_domain.CatalogItemView"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_adapters_handlers_http.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/analytics/price-comparison/{productId}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Compara preços do mesmo produto entre diferentes supermercados e compras recentes",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Analytics"
+                ],
+                "summary": "Comparativo de preços de produto",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID do produto canônico (UUID)",
+                        "name": "productId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/ComprasResidenciais_internal_core_domain.PriceComparisonView"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_adapters_handlers_http.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_adapters_handlers_http.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/analytics/price-oscillation/{productId}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retorna a média de preços de um produto ao longo de diferentes semanas do mês",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Analytics"
+                ],
+                "summary": "Oscilação mensal de preços",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID do produto canônico (UUID)",
+                        "name": "productId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/ComprasResidenciais_internal_core_domain.MonthlyPriceOscillation"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_adapters_handlers_http.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_adapters_handlers_http.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/analytics/search-products": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Busca produtos canônicos por similaridade de cosseno a partir de embeddings gerados pelo modelo text-embedding-004 do Gemini",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Analytics"
+                ],
+                "summary": "Busca semântica de produtos (pgvector)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Termo de busca (ex: arroz, sabão em pó, leite)",
+                        "name": "q",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/ComprasResidenciais_internal_core_domain.CanonicalProduct"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_adapters_handlers_http.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/analytics/summary": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retorna indicadores consolidados da residência (gastos do mês, divisão por morador, top estabelecimentos)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Analytics"
+                ],
+                "summary": "Resumo analítico global",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/ComprasResidenciais_internal_core_domain.GlobalSummaryView"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_adapters_handlers_http.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/login": {
+            "post": {
+                "description": "Realiza login por e-mail e senha, retornando o token JWT e dados do morador",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Autenticar morador",
+                "parameters": [
+                    {
+                        "description": "Credenciais de acesso",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/ComprasResidenciais_internal_core_domain.LoginRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/ComprasResidenciais_internal_core_domain.LoginResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "E-mail e senha são obrigatórios",
+                        "schema": {
+                            "$ref": "#/definitions/internal_adapters_handlers_http.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Credenciais inválidas",
+                        "schema": {
+                            "$ref": "#/definitions/internal_adapters_handlers_http.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/me": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retorna as informações do morador autenticado via token JWT",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Obter perfil do usuário conectado",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/ComprasResidenciais_internal_core_domain.User"
+                        }
+                    },
+                    "401": {
+                        "description": "Usuário não autenticado",
+                        "schema": {
+                            "$ref": "#/definitions/internal_adapters_handlers_http.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/setup-admin": {
+            "post": {
+                "description": "Cadastra o primeiro morador com privilégios de administrador do sistema (caso não exista nenhum)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Cadastrar administrador inicial",
+                "parameters": [
+                    {
+                        "description": "Dados do primeiro administrador",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/ComprasResidenciais_internal_core_domain.SetupAdminRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/ComprasResidenciais_internal_core_domain.LoginResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Dados inválidos ou admin já cadastrado",
+                        "schema": {
+                            "$ref": "#/definitions/internal_adapters_handlers_http.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/status": {
+            "get": {
+                "description": "Verifica se o sistema já possui pelo menos um administrador cadastrado",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Status de configuração de autenticação",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "boolean"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_adapters_handlers_http.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/health": {
+            "get": {
+                "description": "Retorna o status operacional da aplicação e timestamp atual",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "System"
+                ],
+                "summary": "Health Check",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/purchases": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retorna a lista paginada de compras registradas",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Purchases"
+                ],
+                "summary": "Listar histórico de compras",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Quantidade de registros (padrão: 20)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Deslocamento para paginação (padrão: 0)",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/ComprasResidenciais_internal_core_domain.Purchase"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_adapters_handlers_http.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/purchases/manual": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Registra uma compra manual (compras em feiras, sacolões ou sem nota fiscal) com seus itens",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Purchases"
+                ],
+                "summary": "Cadastrar compra manual",
+                "parameters": [
+                    {
+                        "description": "Dados da compra manual",
+                        "name": "purchase",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/ComprasResidenciais_internal_core_domain.Purchase"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/ComprasResidenciais_internal_core_domain.Purchase"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_adapters_handlers_http.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/purchases/sefaz": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Valida o dígito verificador módulo 11 de uma chave fiscal de 44 dígitos e consulta a nota eletrônica na SEFAZ",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Purchases"
+                ],
+                "summary": "Consultar chave NFC-e na SEFAZ",
+                "parameters": [
+                    {
+                        "description": "Chave fiscal de 44 dígitos",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_adapters_handlers_http.ProcessFiscalKeyRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/ComprasResidenciais_internal_core_domain.Purchase"
+                        }
+                    },
+                    "400": {
+                        "description": "Chave inválida ou dígito verificador incorreto",
+                        "schema": {
+                            "$ref": "#/definitions/internal_adapters_handlers_http.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_adapters_handlers_http.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/purchases/upload": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Faz upload de imagem (JPG, PNG, WebP, HEIC) ou PDF do cupom e realiza extração multimodal inteligente de itens, quantidades e valores criando um rascunho (Draft)",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Purchases"
+                ],
+                "summary": "Processar cupom fiscal com IA Gemini Vision",
+                "parameters": [
+                    {
+                        "type": "file",
+                        "description": "Arquivo de imagem ou PDF do cupom fiscal",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/ComprasResidenciais_internal_core_domain.Purchase"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_adapters_handlers_http.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_adapters_handlers_http.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/purchases/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retorna os dados completos de uma compra e seus itens pelo ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Purchases"
+                ],
+                "summary": "Obter detalhes da compra",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID da compra (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/ComprasResidenciais_internal_core_domain.Purchase"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_adapters_handlers_http.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_adapters_handlers_http.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/purchases/{id}/confirm": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Valida e confirma o rascunho de compra revisado pelo morador, gerando embeddings semânticos no pgvector para os produtos",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Purchases"
+                ],
+                "summary": "Confirmar rascunho de compra",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID da compra (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Dados revisados da compra",
+                        "name": "purchase",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/ComprasResidenciais_internal_core_domain.Purchase"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/ComprasResidenciais_internal_core_domain.Purchase"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_adapters_handlers_http.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/shopping-list/send-email": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Envia o conteúdo da lista de compras gerada para o e-mail do morador",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ShoppingList"
+                ],
+                "summary": "Enviar lista de compras por e-mail",
+                "parameters": [
+                    {
+                        "description": "Dados para envio da lista",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_adapters_handlers_http.SendShoppingListEmailRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_adapters_handlers_http.MessageResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_adapters_handlers_http.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/stores": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retorna todos os estabelecimentos comerciais e supermercados cadastrados",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Stores"
+                ],
+                "summary": "Listar estabelecimentos",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/ComprasResidenciais_internal_core_domain.Store"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_adapters_handlers_http.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Cadastra ou localiza um estabelecimento comercial por nome e CNPJ",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Stores"
+                ],
+                "summary": "Cadastrar estabelecimento",
+                "parameters": [
+                    {
+                        "description": "Dados do estabelecimento",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_adapters_handlers_http.StoreRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/ComprasResidenciais_internal_core_domain.Store"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_adapters_handlers_http.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_adapters_handlers_http.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/stores/{id}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Atualiza os dados de um estabelecimento comercial (nome, CNPJ, endereço)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Stores"
+                ],
+                "summary": "Atualizar estabelecimento",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID do estabelecimento (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Dados atualizados do estabelecimento",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_adapters_handlers_http.StoreRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/ComprasResidenciais_internal_core_domain.Store"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_adapters_handlers_http.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Estabelecimento não encontrado",
+                        "schema": {
+                            "$ref": "#/definitions/internal_adapters_handlers_http.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_adapters_handlers_http.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Remove um estabelecimento comercial",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Stores"
+                ],
+                "summary": "Excluir estabelecimento",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID do estabelecimento (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_adapters_handlers_http.MessageResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Estabelecimento não encontrado",
+                        "schema": {
+                            "$ref": "#/definitions/internal_adapters_handlers_http.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_adapters_handlers_http.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/users": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retorna todos os moradores cadastrados na residência",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Listar moradores",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/ComprasResidenciais_internal_core_domain.User"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_adapters_handlers_http.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Cadastra um novo morador na residência. Apenas administradores podem atribuir papel de ADMIN.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Cadastrar novo morador",
+                "parameters": [
+                    {
+                        "description": "Dados do morador",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_adapters_handlers_http.CreateUserRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/ComprasResidenciais_internal_core_domain.User"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_adapters_handlers_http.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_adapters_handlers_http.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/users/{id}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Atualiza dados cadastrais, bloqueio ou senha do morador. Alterações de papel e bloqueio exigem papel de ADMIN.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Atualizar dados do morador",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID do usuário (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Dados para atualização",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_adapters_handlers_http.UpdateUserRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/ComprasResidenciais_internal_core_domain.User"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_adapters_handlers_http.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Apenas administradores podem alterar permissões ou bloquear",
+                        "schema": {
+                            "$ref": "#/definitions/internal_adapters_handlers_http.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Usuário não encontrado",
+                        "schema": {
+                            "$ref": "#/definitions/internal_adapters_handlers_http.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_adapters_handlers_http.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Remove um morador da residência. Requer perfil de ADMIN.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Excluir morador",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID do usuário (UUID)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_adapters_handlers_http.MessageResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Apenas administradores",
+                        "schema": {
+                            "$ref": "#/definitions/internal_adapters_handlers_http.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Usuário não encontrado",
+                        "schema": {
+                            "$ref": "#/definitions/internal_adapters_handlers_http.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_adapters_handlers_http.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "ComprasResidenciais_internal_core_domain.CanonicalProduct": {
+            "type": "object",
+            "properties": {
+                "base_unit": {
+                    "description": "\"kg\", \"L\", \"un\"",
+                    "type": "string"
+                },
+                "category": {
+                    "description": "ex: \"Grãos\"",
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "description": "ex: \"Arroz Branco\"",
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "ComprasResidenciais_internal_core_domain.CatalogItemView": {
+            "type": "object",
+            "properties": {
+                "base_unit": {
+                    "type": "string"
+                },
+                "category": {
+                    "type": "string"
+                },
+                "cheapest_package_info": {
+                    "type": "string"
+                },
+                "cheapest_purchase_date": {
+                    "type": "string"
+                },
+                "cheapest_store_address": {
+                    "type": "string"
+                },
+                "cheapest_store_id": {
+                    "type": "string"
+                },
+                "cheapest_store_name": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "last_purchased_at": {
+                    "type": "string"
+                },
+                "lowest_price_per_unit": {
+                    "type": "number"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "total_purchases": {
+                    "type": "integer"
+                }
+            }
+        },
+        "ComprasResidenciais_internal_core_domain.GlobalSummaryView": {
+            "type": "object",
+            "properties": {
+                "current_month_total": {
+                    "type": "number"
+                },
+                "spending_by_user": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "number"
+                    }
+                },
+                "top_stores": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/ComprasResidenciais_internal_core_domain.StoreShareMetric"
+                    }
+                },
+                "total_purchases": {
+                    "type": "integer"
+                }
+            }
+        },
+        "ComprasResidenciais_internal_core_domain.LoginRequest": {
+            "type": "object",
+            "required": [
+                "email",
+                "password"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                }
+            }
+        },
+        "ComprasResidenciais_internal_core_domain.LoginResponse": {
+            "type": "object",
+            "properties": {
+                "token": {
+                    "type": "string"
+                },
+                "user": {
+                    "$ref": "#/definitions/ComprasResidenciais_internal_core_domain.User"
+                }
+            }
+        },
+        "ComprasResidenciais_internal_core_domain.MonthlyPriceOscillation": {
+            "type": "object",
+            "properties": {
+                "base_unit": {
+                    "type": "string"
+                },
+                "canonical_product_id": {
+                    "type": "string"
+                },
+                "periods": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/ComprasResidenciais_internal_core_domain.PeriodMetric"
+                    }
+                },
+                "product_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "ComprasResidenciais_internal_core_domain.PeriodMetric": {
+            "type": "object",
+            "properties": {
+                "average_price": {
+                    "description": "R$ por unidade base",
+                    "type": "number"
+                },
+                "period_label": {
+                    "description": "\"Dias 01-07\", \"Dias 08-14\", etc.",
+                    "type": "string"
+                },
+                "total_count": {
+                    "type": "integer"
+                }
+            }
+        },
+        "ComprasResidenciais_internal_core_domain.PriceComparisonView": {
+            "type": "object",
+            "properties": {
+                "average_price_per_unit": {
+                    "type": "number"
+                },
+                "base_unit": {
+                    "type": "string"
+                },
+                "best_month_period": {
+                    "description": "ex: \"Dias 15-21\"",
+                    "type": "string"
+                },
+                "canonical_product_id": {
+                    "type": "string"
+                },
+                "cheapest_purchase_date": {
+                    "type": "string"
+                },
+                "cheapest_store_name": {
+                    "type": "string"
+                },
+                "highest_price_per_unit": {
+                    "type": "number"
+                },
+                "lowest_price_per_unit": {
+                    "type": "number"
+                },
+                "max_savings_percentage": {
+                    "type": "number"
+                },
+                "product_name": {
+                    "type": "string"
+                },
+                "recent_purchases": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/ComprasResidenciais_internal_core_domain.RecentItemPurchase"
+                    }
+                }
+            }
+        },
+        "ComprasResidenciais_internal_core_domain.Purchase": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "fiscal_key": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/ComprasResidenciais_internal_core_domain.PurchaseItem"
+                    }
+                },
+                "origin": {
+                    "$ref": "#/definitions/ComprasResidenciais_internal_core_domain.PurchaseOrigin"
+                },
+                "purchased_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/ComprasResidenciais_internal_core_domain.PurchaseStatus"
+                },
+                "store_id": {
+                    "type": "string"
+                },
+                "total_amount": {
+                    "type": "number"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "ComprasResidenciais_internal_core_domain.PurchaseItem": {
+            "type": "object",
+            "properties": {
+                "canonical_product_id": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "normalized_price": {
+                    "description": "TotalPrice / TotalUnits (ex: 4.78/kg)",
+                    "type": "number"
+                },
+                "package_size": {
+                    "description": "ex: 5.0 (tamanho contido no pacote)",
+                    "type": "number"
+                },
+                "package_unit": {
+                    "description": "ex: \"kg\", \"g\", \"L\", \"ml\", \"un\"",
+                    "type": "string"
+                },
+                "purchase_id": {
+                    "type": "string"
+                },
+                "quantity": {
+                    "description": "ex: 1.0 (pacote)",
+                    "type": "number"
+                },
+                "raw_description": {
+                    "description": "ex: \"ARROZ TIPO 1 TJ 5KG\"",
+                    "type": "string"
+                },
+                "total_price": {
+                    "description": "ex: 23.90",
+                    "type": "number"
+                },
+                "total_units": {
+                    "description": "ex: 5.0 (em kg ou L)",
+                    "type": "number"
+                },
+                "unit_price": {
+                    "description": "TotalPrice / Quantity (ex: 23.90/un)",
+                    "type": "number"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "ComprasResidenciais_internal_core_domain.PurchaseOrigin": {
+            "type": "string",
+            "enum": [
+                "LLM",
+                "SEFAZ",
+                "MANUAL"
+            ],
+            "x-enum-varnames": [
+                "PurchaseOriginLLM",
+                "PurchaseOriginSefaz",
+                "PurchaseOriginManual"
+            ]
+        },
+        "ComprasResidenciais_internal_core_domain.PurchaseStatus": {
+            "type": "string",
+            "enum": [
+                "DRAFT",
+                "CONFIRMED"
+            ],
+            "x-enum-varnames": [
+                "PurchaseStatusDraft",
+                "PurchaseStatusConfirmed"
+            ]
+        },
+        "ComprasResidenciais_internal_core_domain.RecentItemPurchase": {
+            "type": "object",
+            "properties": {
+                "buyer_name": {
+                    "type": "string"
+                },
+                "normalized_price": {
+                    "type": "number"
+                },
+                "package_info": {
+                    "description": "ex: \"1x 5kg\"",
+                    "type": "string"
+                },
+                "purchase_id": {
+                    "type": "string"
+                },
+                "purchased_at": {
+                    "type": "string"
+                },
+                "raw_description": {
+                    "type": "string"
+                },
+                "store_name": {
+                    "type": "string"
+                },
+                "total_price": {
+                    "type": "number"
+                }
+            }
+        },
+        "ComprasResidenciais_internal_core_domain.SetupAdminRequest": {
+            "type": "object",
+            "required": [
+                "email",
+                "name",
+                "password"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string",
+                    "minLength": 6
+                }
+            }
+        },
+        "ComprasResidenciais_internal_core_domain.Store": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "cnpj": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "ComprasResidenciais_internal_core_domain.StoreShareMetric": {
+            "type": "object",
+            "properties": {
+                "percentage": {
+                    "type": "number"
+                },
+                "store_name": {
+                    "type": "string"
+                },
+                "total_spent": {
+                    "type": "number"
+                }
+            }
+        },
+        "ComprasResidenciais_internal_core_domain.User": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_blocked": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string"
+                },
+                "role": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_adapters_handlers_http.CreateUserRequest": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "example": "carlos@email.com"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Carlos Silva"
+                },
+                "password": {
+                    "type": "string",
+                    "example": "senha123"
+                },
+                "phone": {
+                    "type": "string",
+                    "example": "11988887777"
+                },
+                "role": {
+                    "type": "string",
+                    "example": "MEMBER"
+                }
+            }
+        },
+        "internal_adapters_handlers_http.ErrorResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string",
+                    "example": "mensagem detalhada do erro"
+                }
+            }
+        },
+        "internal_adapters_handlers_http.MessageResponse": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string",
+                    "example": "Operação executada com sucesso"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "ok"
+                }
+            }
+        },
+        "internal_adapters_handlers_http.ProcessFiscalKeyRequest": {
+            "type": "object",
+            "required": [
+                "fiscal_key"
+            ],
+            "properties": {
+                "fiscal_key": {
+                    "type": "string",
+                    "example": "35240100000000000000650010000000011000000018"
+                }
+            }
+        },
+        "internal_adapters_handlers_http.SendShoppingListEmailRequest": {
+            "type": "object",
+            "required": [
+                "content",
+                "subject",
+                "to_email"
+            ],
+            "properties": {
+                "content": {
+                    "type": "string",
+                    "example": "Itens recomendados:\n- Arroz Tipo 1\n- Feijão Carioca"
+                },
+                "subject": {
+                    "type": "string",
+                    "example": "Lista de Compras da Residência"
+                },
+                "to_email": {
+                    "type": "string",
+                    "example": "morador@email.com"
+                }
+            }
+        },
+        "internal_adapters_handlers_http.StoreRequest": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "address": {
+                    "type": "string",
+                    "example": "Av. Paulista, 1000 - Bela Vista, São Paulo - SP"
+                },
+                "cnpj": {
+                    "type": "string",
+                    "example": "47.508.411/0001-56"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Supermercado Pão de Açúcar"
+                }
+            }
+        },
+        "internal_adapters_handlers_http.UpdateUserRequest": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "example": "carlos@email.com"
+                },
+                "is_blocked": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Carlos Silva"
+                },
+                "new_password": {
+                    "type": "string",
+                    "example": "novaSenha123"
+                },
+                "phone": {
+                    "type": "string",
+                    "example": "11988887777"
+                },
+                "role": {
+                    "type": "string",
+                    "example": "MEMBER"
+                }
+            }
+        }
+    },
+    "securityDefinitions": {
+        "BearerAuth": {
+            "description": "Digite \"Bearer \" seguido do token JWT recebido no login (ex: Bearer eyJhbGci...).",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
+        }
+    }
+}
