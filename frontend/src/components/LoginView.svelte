@@ -1,6 +1,6 @@
-﻿<script lang="ts">
+<script lang="ts">
   import { auth } from '../lib/auth.svelte';
-  import { Lock, Mail, User, ShieldCheck, Sparkles, AlertCircle, ArrowRight, CheckCircle2 } from '@lucide/svelte';
+  import { Lock, Mail, User, ShieldCheck, AlertCircle, ArrowRight, CheckCircle2 } from '@lucide/svelte';
 
   interface Props {
     onsuccess: () => void;
@@ -73,42 +73,38 @@
   }
 </script>
 
-<div class="min-h-screen bg-slate-950 flex flex-col justify-center items-center p-4 relative overflow-hidden">
-  <!-- Glowing background ambient blobs -->
-  <div class="absolute -top-32 -left-32 w-96 h-96 bg-purple-600/20 rounded-full blur-3xl pointer-events-none" aria-hidden="true"></div>
-  <div class="absolute -bottom-32 -right-32 w-96 h-96 bg-emerald-500/15 rounded-full blur-3xl pointer-events-none" aria-hidden="true"></div>
-
-  <div class="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl relative z-10">
+<div class="min-h-screen bg-[#0a0d14] flex flex-col justify-center items-center p-4">
+  <div class="w-full max-w-sm sm:max-w-md bg-[#0e131f] border border-[#1b2234] rounded-xl p-6 sm:p-8 shadow-xl">
     <!-- Header / Brand -->
-    <div class="text-center mb-8">
-      <div class="inline-flex p-3 rounded-2xl bg-gradient-to-tr from-purple-600 to-indigo-600 text-white shadow-lg shadow-purple-500/25 mb-3">
+    <div class="text-center mb-6">
+      <div class="inline-flex p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 mb-3.5 shadow-xs">
         {#if isSetupMode}
-          <ShieldCheck class="w-8 h-8" aria-hidden="true" />
+          <ShieldCheck class="w-6 h-6 stroke-[2.2]" aria-hidden="true" />
         {:else}
-          <Lock class="w-8 h-8" aria-hidden="true" />
+          <Lock class="w-6 h-6 stroke-[2.2]" aria-hidden="true" />
         {/if}
       </div>
-      <h1 class="text-2xl font-bold text-white tracking-tight text-pretty">
+      <h1 class="text-xl sm:text-2xl font-bold text-white tracking-tight text-pretty">
         Compras Residenciais
       </h1>
       <p class="text-xs text-slate-400 mt-1">
         {#if isSetupMode}
-          Configuração Inicial &bull; Criação do Administrador
+          Configuração inicial do administrador
         {:else}
-          Controle de Gastos & Inteligência Semântica
+          Controle de gastos e inteligência de compras
         {/if}
       </p>
     </div>
 
     {#if errorMessage}
-      <div class="mb-5 p-3.5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2" aria-live="polite">
+      <div class="mb-5 p-3 rounded-lg bg-rose-500/10 border border-rose-500/25 text-rose-300 text-xs flex items-center gap-2" aria-live="polite">
         <AlertCircle class="w-4 h-4 shrink-0" aria-hidden="true" />
         <span>{errorMessage}</span>
       </div>
     {/if}
 
     {#if successMessage}
-      <div class="mb-5 p-3.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs flex items-center gap-2" aria-live="polite">
+      <div class="mb-5 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 text-xs flex items-center gap-2" aria-live="polite">
         <CheckCircle2 class="w-4 h-4 shrink-0" aria-hidden="true" />
         <span>{successMessage}</span>
       </div>
@@ -117,15 +113,14 @@
     {#if isSetupMode}
       <!-- Setup Initial Admin Form -->
       <form onsubmit={handleSetupAdmin} class="space-y-4">
-        <div class="p-3 bg-purple-500/10 border border-purple-500/20 rounded-xl mb-4 text-xs text-purple-300 flex items-start gap-2">
-          <Sparkles class="w-4 h-4 text-purple-400 shrink-0 mt-0.5" aria-hidden="true" />
+        <div class="p-3 bg-[#121927] border border-[#1f2a40] rounded-lg mb-4 text-xs text-slate-300">
           <span>
             Nenhum morador cadastrado ainda. Configure o usuário principal que gerenciará moradores e permissões da residência.
           </span>
         </div>
 
         <div>
-          <label for="setup-name" class="block text-xs font-semibold text-slate-300 mb-1">Nome Completo</label>
+          <label for="setup-name" class="block text-xs font-medium text-slate-300 mb-1.5">Nome Completo</label>
           <div class="relative">
             <input
               id="setup-name"
@@ -135,14 +130,14 @@
               bind:value={name}
               placeholder="Ex: Carlos Silva"
               required
-              class="w-full pl-9 pr-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
+              class="w-full pl-9 pr-3 py-2 bg-[#090d16] border border-[#1b2234] focus:border-emerald-500/60 rounded-lg text-slate-100 text-xs focus:outline-none transition-colors"
             />
-            <User class="w-4 h-4 text-slate-500 absolute left-3 top-3 pointer-events-none" aria-hidden="true" />
+            <User class="w-4 h-4 text-slate-500 absolute left-2.5 top-2.5 pointer-events-none" aria-hidden="true" />
           </div>
         </div>
 
         <div>
-          <label for="setup-email" class="block text-xs font-semibold text-slate-300 mb-1">E-mail de Acesso</label>
+          <label for="setup-email" class="block text-xs font-medium text-slate-300 mb-1.5">E-mail de Acesso</label>
           <div class="relative">
             <input
               id="setup-email"
@@ -153,14 +148,14 @@
               bind:value={email}
               placeholder="admin@residencia.com"
               required
-              class="w-full pl-9 pr-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
+              class="w-full pl-9 pr-3 py-2 bg-[#090d16] border border-[#1b2234] focus:border-emerald-500/60 rounded-lg text-slate-100 text-xs focus:outline-none transition-colors"
             />
-            <Mail class="w-4 h-4 text-slate-500 absolute left-3 top-3 pointer-events-none" aria-hidden="true" />
+            <Mail class="w-4 h-4 text-slate-500 absolute left-2.5 top-2.5 pointer-events-none" aria-hidden="true" />
           </div>
         </div>
 
         <div>
-          <label for="setup-password" class="block text-xs font-semibold text-slate-300 mb-1">Senha (mínimo 6 caracteres)</label>
+          <label for="setup-password" class="block text-xs font-medium text-slate-300 mb-1.5">Senha (mínimo 6 caracteres)</label>
           <div class="relative">
             <input
               id="setup-password"
@@ -171,14 +166,14 @@
               placeholder="••••••••"
               required
               minlength="6"
-              class="w-full pl-9 pr-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
+              class="w-full pl-9 pr-3 py-2 bg-[#090d16] border border-[#1b2234] focus:border-emerald-500/60 rounded-lg text-slate-100 text-xs focus:outline-none transition-colors"
             />
-            <Lock class="w-4 h-4 text-slate-500 absolute left-3 top-3 pointer-events-none" aria-hidden="true" />
+            <Lock class="w-4 h-4 text-slate-500 absolute left-2.5 top-2.5 pointer-events-none" aria-hidden="true" />
           </div>
         </div>
 
         <div>
-          <label for="setup-confirm-password" class="block text-xs font-semibold text-slate-300 mb-1">Confirmar Senha</label>
+          <label for="setup-confirm-password" class="block text-xs font-medium text-slate-300 mb-1.5">Confirmar Senha</label>
           <div class="relative">
             <input
               id="setup-confirm-password"
@@ -189,19 +184,19 @@
               placeholder="••••••••"
               required
               minlength="6"
-              class="w-full pl-9 pr-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
+              class="w-full pl-9 pr-3 py-2 bg-[#090d16] border border-[#1b2234] focus:border-emerald-500/60 rounded-lg text-slate-100 text-xs focus:outline-none transition-colors"
             />
-            <Lock class="w-4 h-4 text-slate-500 absolute left-3 top-3 pointer-events-none" aria-hidden="true" />
+            <Lock class="w-4 h-4 text-slate-500 absolute left-2.5 top-2.5 pointer-events-none" aria-hidden="true" />
           </div>
         </div>
 
         <button
           type="submit"
           disabled={isSubmitting}
-          class="w-full py-3 mt-2 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-bold text-xs shadow-lg shadow-purple-600/30 transition-colors cursor-pointer flex items-center justify-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400"
+          class="w-full py-2.5 mt-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 font-semibold text-xs shadow-xs transition-all cursor-pointer flex items-center justify-center gap-2 active:translate-y-px focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
         >
           {#if isSubmitting}
-            <div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" aria-hidden="true"></div>
+            <div class="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" aria-hidden="true"></div>
             <span>Configurando…</span>
           {:else}
             <span>Criar Administrador e Iniciar</span>
@@ -213,7 +208,7 @@
       <!-- Regular Login Form -->
       <form onsubmit={handleLogin} class="space-y-4">
         <div>
-          <label for="login-email" class="block text-xs font-semibold text-slate-300 mb-1">E-mail</label>
+          <label for="login-email" class="block text-xs font-medium text-slate-300 mb-1.5">E-mail</label>
           <div class="relative">
             <input
               id="login-email"
@@ -224,15 +219,15 @@
               bind:value={email}
               placeholder="seu.email@exemplo.com"
               required
-              class="w-full pl-9 pr-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
+              class="w-full pl-9 pr-3 py-2 bg-[#090d16] border border-[#1b2234] focus:border-emerald-500/60 rounded-lg text-slate-100 text-xs focus:outline-none transition-colors"
             />
-            <Mail class="w-4 h-4 text-slate-500 absolute left-3 top-3 pointer-events-none" aria-hidden="true" />
+            <Mail class="w-4 h-4 text-slate-500 absolute left-2.5 top-2.5 pointer-events-none" aria-hidden="true" />
           </div>
         </div>
 
         <div>
-          <div class="flex items-center justify-between mb-1">
-            <label for="login-password" class="block text-xs font-semibold text-slate-300">Senha</label>
+          <div class="flex items-center justify-between mb-1.5">
+            <label for="login-password" class="block text-xs font-medium text-slate-300">Senha</label>
           </div>
           <div class="relative">
             <input
@@ -243,19 +238,19 @@
               bind:value={password}
               placeholder="••••••••"
               required
-              class="w-full pl-9 pr-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
+              class="w-full pl-9 pr-3 py-2 bg-[#090d16] border border-[#1b2234] focus:border-emerald-500/60 rounded-lg text-slate-100 text-xs focus:outline-none transition-colors"
             />
-            <Lock class="w-4 h-4 text-slate-500 absolute left-3 top-3 pointer-events-none" aria-hidden="true" />
+            <Lock class="w-4 h-4 text-slate-500 absolute left-2.5 top-2.5 pointer-events-none" aria-hidden="true" />
           </div>
         </div>
 
         <button
           type="submit"
           disabled={isSubmitting}
-          class="w-full py-3 mt-2 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-bold text-xs shadow-lg shadow-purple-600/30 transition-colors cursor-pointer flex items-center justify-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400"
+          class="w-full py-2.5 mt-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 font-semibold text-xs shadow-xs transition-all cursor-pointer flex items-center justify-center gap-2 active:translate-y-px focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
         >
           {#if isSubmitting}
-            <div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" aria-hidden="true"></div>
+            <div class="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" aria-hidden="true"></div>
             <span>Entrando…</span>
           {:else}
             <span>Acessar Painel</span>
@@ -266,7 +261,7 @@
 
       <div class="mt-6 text-center">
         <p class="text-[11px] text-slate-500">
-          Novo morador na casa? Solicite seu acesso ao administrador da residência.
+          Novo morador? Solicite seu acesso ao administrador da casa.
         </p>
       </div>
     {/if}

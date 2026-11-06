@@ -9,7 +9,7 @@
     Trash2,
     Check,
     AlertCircle,
-    Sparkles,
+    Search,
     Calendar,
     Store,
     User as UserIcon,
@@ -396,7 +396,7 @@
     role="dialog"
     aria-modal="true"
     aria-labelledby="purchase-modal-title"
-    class="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-4xl shadow-2xl overflow-hidden my-8"
+    class="bg-[#0e131f] border border-[#232d44] rounded-xl w-full max-w-4xl shadow-2xl overflow-hidden my-8"
   >
     <!-- Modal Header -->
     <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/50">
@@ -470,7 +470,7 @@
             class="flex items-center gap-2 px-5 py-3 font-semibold text-sm border-b-2 transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 {activeTab === 'upload' ? 'border-emerald-500 text-emerald-400' : 'border-transparent text-slate-400 hover:text-slate-200'}"
           >
             <Upload class="w-4 h-4" aria-hidden="true" />
-            <span>Upload de Cupom (IA Gemini)</span>
+            <span>Upload de Foto / PDF</span>
           </button>
 
           <button
@@ -544,8 +544,8 @@
 
             <div class="flex items-center justify-between pt-4">
               <div class="flex items-center gap-2 text-xs text-slate-400">
-                <Sparkles class="w-4 h-4 text-emerald-400" aria-hidden="true" />
-                <span>Extração multimodal automática de itens, quantidades e valores via Gemini</span>
+                <FileText class="w-4 h-4 text-emerald-400" aria-hidden="true" />
+                <span>Leitura e conferência automática de itens e valores</span>
               </div>
 
               <button
@@ -555,7 +555,7 @@
               >
                 {#if isSubmitting}
                   <div class="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" aria-hidden="true"></div>
-                  <span>Processando Nota com IA…</span>
+                  <span>Processando documento…</span>
                 {:else}
                   <span>Extrair Itens & Revisar</span>
                   <ArrowRight class="w-4 h-4" aria-hidden="true" />
@@ -569,7 +569,7 @@
         {#if activeTab === 'sefaz'}
           <div class="space-y-5 max-w-xl mx-auto py-2">
             <!-- Hero Card: Leitura Instantânea com Câmera -->
-            <div class="p-4 rounded-2xl bg-gradient-to-r from-emerald-950/40 via-slate-900 to-slate-950 border border-emerald-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-lg shadow-emerald-500/5">
+            <div class="p-4 rounded-xl bg-[#090d16] border border-[#1b2234] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-lg shadow-emerald-500/5">
               <div class="flex items-start gap-3">
                 <div class="h-10 w-10 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/30 mt-0.5 sm:mt-0">
                   <Camera class="w-5 h-5" aria-hidden="true" />
@@ -577,9 +577,7 @@
                 <div>
                   <h4 class="text-sm font-bold text-white flex items-center gap-2">
                     <span>Leitor de QR Code de Cupom</span>
-                    <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                      Zero Digitação
-                    </span>
+                    
                   </h4>
                   <p class="text-xs text-slate-400 mt-0.5">
                     Aponte a câmera do celular para o QR Code impresso no cupom da SEFAZ para preencher tudo em 1 segundo.
@@ -801,8 +799,8 @@
                 <span class="text-xs font-bold text-slate-300 uppercase tracking-wider">
                   Itens da Compra (<span class="tabular-nums">{editableItems.length}</span>)
                 </span>
-                <span class="text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium flex items-center gap-1">
-                  <Sparkles class="w-3 h-3" aria-hidden="true" /> pgvector ativo
+                <span class="text-[10px] px-2 py-0.5 rounded bg-[#141b29] text-slate-400 border border-[#212c42] font-medium flex items-center gap-1">
+                  <Check class="w-3 h-3" aria-hidden="true" /> Vinculação ao catálogo
                 </span>
               </div>
               <button
@@ -851,17 +849,17 @@
                             type="button"
                             onclick={() => triggerItemSearch(idx)}
                             class="absolute right-1 text-slate-400 hover:text-emerald-400 p-1 rounded transition-colors cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-emerald-400"
-                            title="Buscar produtos já cadastrados com pgvector"
-                            aria-label="Buscar produto com pgvector"
+                            title="Buscar produto no catálogo"
+                            aria-label="Buscar produto"
                           >
-                            <Sparkles class="w-3.5 h-3.5 {isSearchingProduct && activeSearchIndex === idx ? 'animate-spin text-emerald-400' : (item.canonical_product_id ? 'text-emerald-400' : '')}" aria-hidden="true" />
+                            <Search class="w-3.5 h-3.5 {isSearchingProduct && activeSearchIndex === idx ? 'animate-spin text-emerald-400' : (item.canonical_product_id ? 'text-emerald-400' : '')}" aria-hidden="true" />
                           </button>
                         </div>
 
                         {#if item.canonical_product_id}
                           <div class="flex items-center gap-1 mt-1 text-[10px] text-emerald-400">
-                            <Sparkles class="w-2.5 h-2.5 shrink-0" aria-hidden="true" />
-                            <span class="truncate">Vinculado (pgvector)</span>
+                            <CheckCircle2 class="w-2.5 h-2.5 shrink-0" aria-hidden="true" />
+                            <span class="truncate">Vinculado ao catálogo</span>
                             <button
                               type="button"
                               onclick={() => { item.canonical_product_id = undefined; }}
@@ -883,7 +881,7 @@
                           >
                             <div class="p-2 bg-slate-950 border-b border-slate-800 flex items-center justify-between text-[11px] text-slate-400">
                               <span class="flex items-center gap-1.5 text-emerald-400 font-semibold">
-                                <Sparkles class="w-3 h-3" aria-hidden="true" /> Catálogo Inteligente (pgvector)
+                                <Search class="w-3 h-3" aria-hidden="true" /> Catálogo de Produtos
                               </span>
                               <button
                                 type="button"
@@ -900,12 +898,12 @@
                               {#if isSearchingProduct}
                                 <div class="p-4 text-center text-xs text-slate-400 flex items-center justify-center gap-2">
                                   <div class="w-3.5 h-3.5 border-2 border-emerald-500/30 border-t-emerald-400 rounded-full animate-spin" aria-hidden="true"></div>
-                                  <span>Buscando produtos com IA & pgvector…</span>
+                                  <span>Buscando no catálogo…</span>
                                 </div>
                               {:else if searchResults.length === 0}
                                 <div class="p-3 text-center text-xs text-slate-400">
                                   <span>Nenhum produto similar encontrado.</span>
-                                  <p class="text-[10px] text-slate-500 mt-0.5">Um novo produto canônico e vetor serão gerados ao salvar.</p>
+                                  <p class="text-[10px] text-slate-500 mt-0.5">Um novo produto será registrado ao salvar.</p>
                                 </div>
                               {:else}
                                 {#each searchResults as product}
@@ -1026,7 +1024,7 @@
               >
                 {#if isSubmitting}
                   <div class="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" aria-hidden="true"></div>
-                  <span>Salvando no Banco & pgvector…</span>
+                  <span>Salvando compra…</span>
                 {:else}
                   <Check class="w-4 h-4 stroke-[3]" aria-hidden="true" />
                   <span>Confirmar e Salvar Compra</span>

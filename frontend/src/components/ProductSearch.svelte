@@ -1,5 +1,5 @@
-﻿<script lang="ts">
-  import { Search, Sparkles, X, Tag } from '@lucide/svelte';
+<script lang="ts">
+  import { Search, X, Tag, Check, ArrowRight } from '@lucide/svelte';
   import type { CanonicalProduct } from '../types';
   import { api } from '../lib/api';
 
@@ -15,7 +15,7 @@
   let isSearching = $state(false);
   let showDropdown = $state(false);
 
-  // Sugestões populares para busca rápida
+  // Sugestões populares para consulta rápida
   const quickSuggestions = ['Arroz', 'Feijão', 'Leite', 'Café', 'Azeite', 'Sabão em Pó'];
 
   let searchTimeout: any;
@@ -42,7 +42,7 @@
       } finally {
         isSearching = false;
       }
-    }, 250);
+    }, 220);
   }
 
   function handleSelect(product: CanonicalProduct) {
@@ -76,20 +76,20 @@
 </script>
 
 <div class="relative w-full max-w-3xl mx-auto mb-8">
-  <div class="text-center mb-4">
+  <div class="text-center mb-5">
     <h2 class="text-xl sm:text-2xl font-bold text-white tracking-tight text-pretty">
-      Inteligência de Mercado e Normalização
+      Comparativo de Preços por Unidade
     </h2>
-    <p class="text-sm text-slate-400 mt-1">
-      Compare onde itens essenciais estão mais baratos em <span class="text-emerald-400 font-mono font-medium">R$/kg</span>, <span class="text-emerald-400 font-mono font-medium">R$/litro</span> ou <span class="text-emerald-400 font-mono font-medium">R$/unidade</span>.
+    <p class="text-xs sm:text-sm text-slate-400 mt-1 max-w-xl mx-auto">
+      Descubra em qual loja o item sai mais em conta por <span class="text-emerald-400 font-mono font-medium">kg</span>, <span class="text-emerald-400 font-mono font-medium">litro</span> ou <span class="text-emerald-400 font-mono font-medium">unidade</span>.
     </p>
   </div>
 
   <!-- Search Input Container -->
   <div class="relative">
-    <label for="product-search-input" class="sr-only">Pesquisar produto canônico</label>
+    <label for="product-search-input" class="sr-only">Pesquisar produto no catálogo</label>
     <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
-      <Search class="w-5 h-5 text-emerald-400" aria-hidden="true" />
+      <Search class="w-4 h-4 text-slate-400" aria-hidden="true" />
     </div>
 
     <input
@@ -99,26 +99,23 @@
       value={query}
       oninput={handleInput}
       onfocus={() => { if (searchResults.length > 0) showDropdown = true; }}
-      placeholder="Pesquisar produto canônico (ex: Arroz, Detergente, Leite Integral)…"
-      class="w-full pl-12 pr-12 py-3.5 bg-slate-900 border border-slate-700/80 rounded-2xl text-slate-100 placeholder-slate-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 focus-visible:border-emerald-500 transition-colors text-base shadow-lg shadow-black/20"
+      placeholder="Buscar por produto, marca ou categoria (ex: Arroz, Detergente, Café)…"
+      class="w-full pl-11 pr-11 py-3 bg-[#0e131f] border border-[#1b2234] focus:border-emerald-500/60 focus:bg-[#111726] rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none transition-all text-sm shadow-xs"
     />
 
-    <div class="absolute inset-y-0 right-0 pr-4 flex items-center gap-2">
+    <div class="absolute inset-y-0 right-0 pr-3.5 flex items-center gap-2">
       {#if isSearching}
         <div class="w-4 h-4 border-2 border-emerald-500/30 border-t-emerald-400 rounded-full animate-spin" aria-hidden="true"></div>
       {:else if query}
         <button
           onclick={handleClear}
-          class="text-slate-400 hover:text-slate-200 transition-colors cursor-pointer p-1 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+          class="text-slate-400 hover:text-slate-200 transition-colors cursor-pointer p-1 rounded-md hover:bg-[#1a2233] focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
           title="Limpar busca"
           aria-label="Limpar busca"
         >
-          <X class="w-4 h-4" aria-hidden="true" />
+          <X class="w-3.5 h-3.5" aria-hidden="true" />
         </button>
       {/if}
-      <span class="text-[10px] uppercase font-semibold px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700 hidden sm:inline-block">
-        pgvector
-      </span>
     </div>
   </div>
 
@@ -126,37 +123,36 @@
   {#if showDropdown && searchResults.length > 0}
     <div
       role="listbox"
-      aria-label="Sugestões de produtos"
+      aria-label="Resultados de produtos"
       aria-live="polite"
-      class="absolute z-50 left-0 right-0 mt-2 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl overflow-hidden max-h-80 overflow-y-auto"
+      class="absolute z-50 left-0 right-0 mt-2 bg-[#0e131f] border border-[#232d44] rounded-xl shadow-xl overflow-hidden max-h-80 overflow-y-auto"
     >
-      <div class="p-2 border-b border-slate-800 flex items-center justify-between text-xs text-slate-400 font-medium">
-        <span class="flex items-center gap-1.5 text-emerald-400">
-          <Sparkles class="w-3.5 h-3.5" aria-hidden="true" /> Produtos Encontrados via Busca Semântica
-        </span>
-        <span class="tabular-nums">{searchResults.length} {searchResults.length === 1 ? 'resultado' : 'resultados'}</span>
+      <div class="px-4 py-2.5 border-b border-[#1b2234] flex items-center justify-between text-xs text-slate-400 font-medium">
+        <span>Itens encontrados no catálogo</span>
+        <span class="tabular-nums font-mono text-slate-500">{searchResults.length} {searchResults.length === 1 ? 'item' : 'itens'}</span>
       </div>
 
-      <div class="divide-y divide-slate-800/60">
+      <div class="divide-y divide-[#182030]">
         {#each searchResults as product}
           <button
             role="option"
             aria-selected={selectedProduct?.id === product.id}
             onclick={() => handleSelect(product)}
-            class="w-full text-left px-4 py-3 hover:bg-slate-800/70 transition-colors flex items-center justify-between group cursor-pointer focus:outline-none focus-visible:bg-slate-800/90"
+            class="w-full text-left px-4 py-3 hover:bg-[#151c2c] transition-colors flex items-center justify-between group cursor-pointer focus:outline-none focus-visible:bg-[#151c2c]"
           >
             <div>
-              <div class="font-medium text-slate-200 group-hover:text-emerald-400 transition-colors">
+              <div class="font-medium text-sm text-slate-200 group-hover:text-emerald-400 transition-colors">
                 {product.name}
               </div>
               <div class="text-xs text-slate-500 flex items-center gap-2 mt-0.5">
                 <span>{product.category || 'Geral'}</span>
                 <span>•</span>
-                <span class="text-slate-400">Unidade base: <strong class="text-slate-300 font-mono">{product.base_unit}</strong></span>
+                <span class="text-slate-400">Unidade base: <span class="text-slate-300 font-mono">{product.base_unit}</span></span>
               </div>
             </div>
-            <span class="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-800 group-hover:bg-emerald-500/10 group-hover:text-emerald-400 text-slate-400 transition-colors">
-              Selecionar
+            <span class="text-xs font-medium px-2.5 py-1 rounded-md bg-[#182030] group-hover:bg-emerald-500/10 group-hover:text-emerald-400 text-slate-400 transition-colors flex items-center gap-1">
+              <span>Selecionar</span>
+              <ArrowRight class="w-3 h-3" aria-hidden="true" />
             </span>
           </button>
         {/each}
@@ -165,14 +161,14 @@
   {/if}
 
   <!-- Quick suggestions tags -->
-  <div class="flex items-center gap-2 mt-3 flex-wrap justify-center text-xs">
-    <span class="text-slate-500 flex items-center gap-1">
-      <Tag class="w-3 h-3" aria-hidden="true" /> Sugestões:
+  <div class="flex items-center gap-1.5 mt-3 flex-wrap justify-center text-xs">
+    <span class="text-slate-500 text-[11px] mr-1">
+      Atalhos:
     </span>
     {#each quickSuggestions as suggestion}
       <button
         onclick={() => handleQuickSearch(suggestion)}
-        class="px-2.5 py-1 rounded-lg bg-slate-800/70 hover:bg-slate-800 text-slate-400 hover:text-emerald-400 border border-slate-700/60 transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+        class="px-2.5 py-1 rounded-md bg-[#0e131f] hover:bg-[#161d2d] text-slate-400 hover:text-slate-200 border border-[#1b2234] hover:border-[#27324b] transition-all cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-emerald-400"
       >
         {suggestion}
       </button>
@@ -181,19 +177,19 @@
 
   <!-- Selected product badge indicator -->
   {#if selectedProduct}
-    <div class="mt-4 flex items-center justify-between p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs sm:text-sm">
-      <div class="flex items-center gap-2">
-        <Sparkles class="w-4 h-4 text-emerald-400 shrink-0" aria-hidden="true" />
+    <div class="mt-4 flex items-center justify-between p-3 rounded-lg bg-[#0e131f] border border-emerald-500/30 text-slate-300 text-xs sm:text-sm">
+      <div class="flex items-center gap-2.5">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 shrink-0" aria-hidden="true"></span>
         <span>
-          Produto Ativo: <strong class="text-white font-semibold">{selectedProduct.name}</strong> 
-          <span class="text-emerald-400/80">({selectedProduct.category || 'Geral'} • R$/{selectedProduct.base_unit})</span>
+          Produto em análise: <strong class="text-white font-semibold">{selectedProduct.name}</strong> 
+          <span class="text-slate-400 font-normal">({selectedProduct.category || 'Geral'} • R$/{selectedProduct.base_unit})</span>
         </span>
       </div>
       <button
         onclick={() => handleClear()}
-        class="text-xs text-emerald-400 hover:underline cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-emerald-400 rounded px-1"
+        class="text-xs text-emerald-400 hover:text-emerald-300 transition-colors cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-emerald-400 rounded px-1.5 py-0.5"
       >
-        Trocar produto
+        Alterar
       </button>
     </div>
   {/if}

@@ -1,4 +1,4 @@
-﻿<script lang="ts">
+<script lang="ts">
   import type { Store } from '../types';
   import {
     Store as StoreIcon,
@@ -207,28 +207,28 @@
 </script>
 
 <div class="space-y-6">
-  <div class="bg-slate-900 border border-slate-800 p-5 rounded-2xl">
+  <div class="bg-[#0e131f] border border-[#1b2234] p-5 rounded-xl shadow-xs">
     <div class="flex items-center gap-3">
-      <div class="p-2.5 rounded-xl bg-purple-500/10 text-purple-400">
-        <StoreIcon class="w-5 h-5" aria-hidden="true" />
+      <div class="h-9 w-9 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+        <StoreIcon class="w-4 h-4" aria-hidden="true" />
       </div>
       <div>
-        <h2 class="text-lg font-bold text-white text-pretty">Estabelecimentos Comerciais</h2>
-        <p class="text-xs text-slate-400">
-          Supermercados, atacadistas, feiras e comércios locais monitorados
+        <h2 class="text-base sm:text-lg font-semibold text-white">Estabelecimentos Comerciais</h2>
+        <p class="text-xs text-slate-400 mt-0.5">
+          Supermercados, feiras e comércios locais monitorados
         </p>
       </div>
     </div>
   </div>
 
   {#if feedbackMessage}
-    <div class="p-3.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs flex items-center gap-2" aria-live="polite">
+    <div class="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 text-xs flex items-center gap-2" aria-live="polite">
       <CheckCircle class="w-4 h-4 shrink-0" aria-hidden="true" />
       <span>{feedbackMessage}</span>
     </div>
   {/if}
   {#if errorMessage}
-    <div class="p-3.5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2" aria-live="polite">
+    <div class="p-3 rounded-lg bg-rose-500/10 border border-rose-500/25 text-rose-300 text-xs flex items-center gap-2" aria-live="polite">
       <AlertCircle class="w-4 h-4 shrink-0" aria-hidden="true" />
       <span>{errorMessage}</span>
     </div>
@@ -236,9 +236,9 @@
 
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
     <!-- Form to add/edit store -->
-    <div class="bg-slate-900 border border-slate-800 p-5 rounded-2xl h-fit">
-      <div class="flex items-center justify-between mb-3">
-        <h3 class="text-sm font-bold text-white flex items-center gap-2">
+    <div class="bg-[#0e131f] border border-[#1b2234] p-5 rounded-xl h-fit shadow-xs">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-xs sm:text-sm font-semibold text-white flex items-center gap-2">
           {#if editingStore}
             <Pencil class="w-4 h-4 text-amber-400" aria-hidden="true" />
             <span>Editar Estabelecimento</span>
@@ -250,7 +250,7 @@
         {#if editingStore}
           <button
             onclick={cancelEdit}
-            class="text-xs text-slate-400 hover:text-slate-200 flex items-center gap-1 cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-slate-400 rounded px-1"
+            class="text-xs text-slate-400 hover:text-slate-200 flex items-center gap-1 cursor-pointer focus:outline-none rounded px-1"
             aria-label="Cancelar edição"
           >
             <X class="w-3.5 h-3.5" aria-hidden="true" /> <span>Cancelar</span>
@@ -260,20 +260,20 @@
 
       <form onsubmit={handleSubmit} class="space-y-4">
         <div>
-          <label for="store-name" class="block text-xs font-semibold text-slate-300 mb-1">Nome Fantasia *</label>
+          <label for="store-name" class="block text-xs font-medium text-slate-300 mb-1.5">Nome Fantasia *</label>
           <input
             id="store-name"
             name="store-name"
             type="text"
             autocomplete="organization"
             bind:value={name}
-            placeholder="Ex: Pão de Açúcar / Assaí / Feira Livre"
-            class="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 text-xs focus:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500"
+            placeholder="Ex: Pão de Açúcar / Assaí / Feira"
+            class="w-full px-3 py-2 bg-[#090d16] border border-[#1b2234] focus:border-emerald-500/60 rounded-lg text-slate-100 text-xs focus:outline-none transition-colors"
           />
         </div>
 
         <div>
-          <label for="store-cnpj" class="block text-xs font-semibold text-slate-300 mb-1">CNPJ (opcional)</label>
+          <label for="store-cnpj" class="block text-xs font-medium text-slate-300 mb-1.5">CNPJ (opcional)</label>
           <input
             id="store-cnpj"
             name="store-cnpj"
@@ -281,25 +281,25 @@
             autocomplete="off"
             bind:value={cnpj}
             placeholder="00.000.000/0000-00"
-            class="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 text-xs focus:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 font-mono"
+            class="w-full px-3 py-2 bg-[#090d16] border border-[#1b2234] focus:border-emerald-500/60 rounded-lg text-slate-100 text-xs focus:outline-none transition-colors font-mono"
           />
         </div>
 
         <!-- Localização: Busca por CEP e Seleção no Mapa -->
-        <div class="p-3.5 bg-slate-950/70 border border-slate-800 rounded-xl space-y-3">
+        <div class="p-3.5 bg-[#090d16] border border-[#1b2234] rounded-lg space-y-3">
           <div class="flex items-center justify-between gap-2">
-            <span class="text-xs font-semibold text-purple-400 flex items-center gap-1.5 shrink-0">
-              <MapPin class="w-3.5 h-3.5" aria-hidden="true" /> Localização & Endereço
+            <span class="text-xs font-medium text-slate-300 flex items-center gap-1.5 shrink-0">
+              <MapPin class="w-3.5 h-3.5 text-slate-400" aria-hidden="true" /> Localização & Endereço
             </span>
 
             <button
               type="button"
               onclick={() => (isMapModalOpen = true)}
-              class="text-[11px] font-semibold text-purple-400 hover:text-purple-300 bg-purple-500/10 hover:bg-purple-500/20 px-2.5 py-1 rounded-lg border border-purple-500/30 flex items-center gap-1 transition-colors cursor-pointer shrink-0 focus:outline-none focus-visible:ring-1 focus-visible:ring-purple-400"
+              class="text-[11px] font-medium text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 px-2.5 py-1 rounded-md border border-emerald-500/25 flex items-center gap-1 transition-colors cursor-pointer shrink-0 focus:outline-none"
               title="Abrir mapa interativo para clicar no local"
             >
               <Map class="w-3 h-3" aria-hidden="true" />
-              <span>Selecionar no Mapa</span>
+              <span>Mapa</span>
             </button>
           </div>
 
@@ -323,14 +323,14 @@
                       }
                     }}
                     placeholder="00000-000"
-                    class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-slate-100 text-xs focus:outline-none focus-visible:ring-1 focus-visible:ring-purple-500 font-mono"
+                    class="w-full px-3 py-2 bg-[#0e131f] border border-[#1b2234] focus:border-emerald-500/60 rounded-lg text-slate-100 text-xs focus:outline-none transition-colors font-mono"
                   />
                 </div>
                 <button
                   type="button"
                   onclick={searchCep}
                   disabled={isSearchingCep || cep.replace(/\D/g, '').length !== 8}
-                  class="shrink-0 px-3.5 py-2 bg-purple-600 hover:bg-purple-500 disabled:opacity-40 text-white rounded-xl text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1.5 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400"
+                  class="shrink-0 px-3 py-2 bg-[#182030] hover:bg-[#202b40] disabled:opacity-40 text-slate-200 border border-[#26334d] rounded-lg text-xs font-medium transition-colors cursor-pointer flex items-center gap-1.5 focus:outline-none"
                   title="Consultar CEP nos Correios"
                   aria-label="Buscar CEP nos Correios"
                 >
@@ -339,7 +339,7 @@
                   {:else}
                     <Search class="w-3.5 h-3.5" aria-hidden="true" />
                   {/if}
-                  <span>Buscar CEP</span>
+                  <span>Buscar</span>
                 </button>
               </div>
             </div>
@@ -354,7 +354,7 @@
                 bind:value={streetNumber}
                 oninput={handleNumberInput}
                 placeholder="Ex: 1500, Bloco B ou S/N"
-                class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-slate-100 text-xs focus:outline-none focus-visible:ring-1 focus-visible:ring-purple-500"
+                class="w-full px-3 py-2 bg-[#0e131f] border border-[#1b2234] focus:border-emerald-500/60 rounded-lg text-slate-100 text-xs focus:outline-none transition-colors"
               />
             </div>
           </div>
@@ -375,8 +375,8 @@
               autocomplete="street-address"
               rows="2"
               bind:value={address}
-              placeholder="Ex: Av. Brigadeiro Faria Lima, 1200 - Pinheiros, São Paulo - SP"
-              class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-slate-100 text-xs focus:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500"
+              placeholder="Ex: Av. Paulista, 1000 - Bela Vista, São Paulo - SP"
+              class="w-full px-3 py-2 bg-[#0e131f] border border-[#1b2234] focus:border-emerald-500/60 rounded-lg text-slate-100 text-xs focus:outline-none transition-colors"
             ></textarea>
           </div>
 
@@ -385,7 +385,7 @@
               <button
                 type="button"
                 onclick={() => openGoogleMapsSearch(name ? `${name} ${address}` : address)}
-                class="text-[11px] text-blue-400 hover:text-blue-300 hover:underline flex items-center gap-1 cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-400 rounded"
+                class="text-[11px] text-emerald-400 hover:text-emerald-300 hover:underline flex items-center gap-1 cursor-pointer focus:outline-none rounded"
               >
                 <ExternalLink class="w-3 h-3" aria-hidden="true" />
                 <span>Conferir no Google Maps</span>
@@ -399,7 +399,7 @@
             <button
               type="button"
               onclick={cancelEdit}
-              class="px-3 py-2.5 rounded-xl border border-slate-700 text-slate-300 hover:bg-slate-800 font-semibold text-xs transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+              class="px-3 py-2 rounded-lg border border-[#1b2234] text-slate-300 hover:bg-[#182030] font-medium text-xs transition-colors cursor-pointer focus:outline-none"
             >
               Cancelar
             </button>
@@ -407,7 +407,7 @@
           <button
             type="submit"
             disabled={isSubmitting || !name.trim()}
-            class="flex-1 py-2.5 rounded-xl {editingStore ? 'bg-amber-500 hover:bg-amber-400 text-slate-950' : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950'} disabled:opacity-50 font-bold text-xs shadow-md transition-colors cursor-pointer flex items-center justify-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+            class="flex-1 py-2 rounded-lg {editingStore ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold' : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold'} disabled:opacity-50 text-xs transition-all cursor-pointer flex items-center justify-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
           >
             {#if isSubmitting}
               <div class="w-3.5 h-3.5 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" aria-hidden="true"></div>
@@ -424,45 +424,45 @@
     </div>
 
     <!-- Stores Table/Grid -->
-    <div class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
-      <div class="p-4 border-b border-slate-800 flex justify-between items-center">
-        <span class="text-xs font-bold uppercase text-slate-400">Lojas Cadastradas ({storeList.length})</span>
+    <div class="lg:col-span-2 bg-[#0e131f] border border-[#1b2234] rounded-xl overflow-hidden shadow-xs">
+      <div class="p-4 border-b border-[#1b2234] flex justify-between items-center bg-[#090d16]">
+        <span class="text-xs font-medium text-slate-400">Lojas Cadastradas ({storeList.length})</span>
       </div>
 
       {#if loading}
-        <div class="p-8 text-center text-slate-400 text-sm">Carregando estabelecimentos…</div>
+        <div class="p-8 text-center text-slate-400 text-xs sm:text-sm">Carregando estabelecimentos…</div>
       {:else if storeList.length === 0}
         <div class="p-10 text-center text-slate-400 space-y-2">
           <Building2 class="w-8 h-8 text-slate-600 mx-auto" aria-hidden="true" />
-          <p class="text-sm font-semibold text-slate-300">Nenhum estabelecimento cadastrado ainda</p>
+          <p class="text-xs sm:text-sm font-semibold text-slate-300">Nenhum estabelecimento cadastrado ainda</p>
           <p class="text-xs text-slate-500 max-w-sm mx-auto">
             Cadastre os supermercados, feiras ou mercearias onde você costuma realizar compras.
           </p>
         </div>
       {:else}
-        <div class="divide-y divide-slate-800/60">
+        <div class="divide-y divide-[#182030]">
           {#each storeList as s}
-            <div class="p-4 flex items-center justify-between hover:bg-slate-800/30 transition-colors {editingStore?.id === s.id ? 'bg-slate-800/50 border-l-2 border-amber-400' : ''}">
+            <div class="p-4 flex items-center justify-between hover:bg-[#131926] transition-colors {editingStore?.id === s.id ? 'bg-[#182030] border-l-2 border-amber-400' : ''}">
               <div class="flex items-center gap-3">
-                <div class="h-10 w-10 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center font-bold border border-purple-500/20 shrink-0">
-                  <Building2 class="w-5 h-5" aria-hidden="true" />
+                <div class="h-9 w-9 rounded-lg bg-[#141b29] text-slate-300 flex items-center justify-center font-bold border border-[#212c42] shrink-0">
+                  <Building2 class="w-4 h-4" aria-hidden="true" />
                 </div>
                 <div>
-                  <div class="font-semibold text-white text-sm">
+                  <div class="font-semibold text-white text-xs sm:text-sm">
                     {s.name}
                   </div>
                   <div class="text-xs text-slate-400 flex flex-wrap items-center gap-2 mt-0.5">
                     {#if s.cnpj}
-                      <span class="font-mono tabular-nums">CNPJ: {s.cnpj}</span>
+                      <span class="font-mono tabular-nums text-slate-500">CNPJ: {s.cnpj}</span>
                     {/if}
                     {#if s.address}
                       <span class="flex items-center gap-1 text-slate-400">
-                        <MapPin class="w-3 h-3 text-purple-400 shrink-0" aria-hidden="true" />
+                        <MapPin class="w-3 h-3 text-slate-500 shrink-0" aria-hidden="true" />
                         <span>{s.address}</span>
                       </span>
                       <button
                         onclick={() => openGoogleMapsSearch(`${s.name} ${s.address}`)}
-                        class="text-[11px] text-blue-400 hover:text-blue-300 hover:underline flex items-center gap-0.5 cursor-pointer ml-1 focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-400 rounded"
+                        class="text-[11px] text-emerald-400 hover:text-emerald-300 hover:underline flex items-center gap-0.5 cursor-pointer ml-1 focus:outline-none rounded"
                         title="Abrir no Google Maps"
                       >
                         <ExternalLink class="w-3 h-3" aria-hidden="true" />
@@ -476,19 +476,19 @@
               <div class="flex items-center gap-1.5 shrink-0 ml-2">
                 <button
                   onclick={() => startEdit(s)}
-                  class="p-2 rounded-lg bg-slate-800 hover:bg-amber-500/10 text-slate-400 hover:text-amber-400 transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+                  class="p-1.5 rounded-md bg-[#182030] hover:bg-amber-500/10 text-slate-400 hover:text-amber-400 transition-colors cursor-pointer focus:outline-none"
                   title="Editar Estabelecimento"
                   aria-label="Editar {s.name}"
                 >
-                  <Pencil class="w-4 h-4" aria-hidden="true" />
+                  <Pencil class="w-3.5 h-3.5" aria-hidden="true" />
                 </button>
                 <button
                   onclick={() => handleDeleteStore(s)}
-                  class="p-2 rounded-lg bg-slate-800 hover:bg-rose-500/10 text-slate-400 hover:text-rose-400 transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"
+                  class="p-1.5 rounded-md bg-[#182030] hover:bg-rose-500/10 text-slate-400 hover:text-rose-400 transition-colors cursor-pointer focus:outline-none"
                   title="Excluir Estabelecimento"
                   aria-label="Excluir {s.name}"
                 >
-                  <Trash2 class="w-4 h-4" aria-hidden="true" />
+                  <Trash2 class="w-3.5 h-3.5" aria-hidden="true" />
                 </button>
               </div>
             </div>

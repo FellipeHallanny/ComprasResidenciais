@@ -1,4 +1,4 @@
-﻿<script lang="ts">
+<script lang="ts">
   import { onMount } from 'svelte';
   import { X, MapPin, Search, Navigation, Check, ExternalLink } from '@lucide/svelte';
   import L from 'leaflet';
@@ -219,21 +219,21 @@
   });
 </script>
 
-<div class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-hidden overscroll-contain">
+<div class="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 overflow-hidden overscroll-contain">
   <div
     role="dialog"
     aria-modal="true"
     aria-labelledby="location-picker-title"
-    class="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-4xl h-[90vh] max-h-[780px] shadow-2xl flex flex-col overflow-hidden relative"
+    class="bg-[#0e131f] border border-[#232d44] rounded-xl w-full max-w-4xl h-[90vh] max-h-[780px] shadow-2xl flex flex-col overflow-hidden relative"
   >
     <!-- Modal Header -->
-    <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/90 z-10 shrink-0">
+    <div class="px-5 py-4 border-b border-[#1b2234] flex items-center justify-between bg-[#0e131f] z-10 shrink-0">
       <div class="flex items-center gap-2.5">
-        <div class="p-2 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20">
-          <MapPin class="w-5 h-5" aria-hidden="true" />
+        <div class="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center">
+          <MapPin class="w-4 h-4" aria-hidden="true" />
         </div>
         <div>
-          <h3 id="location-picker-title" class="text-base font-bold text-white text-pretty">Selecionar Localização da Loja</h3>
+          <h3 id="location-picker-title" class="text-sm sm:text-base font-semibold text-white">Selecionar Localização da Loja</h3>
           <p class="text-xs text-slate-400">
             Clique no mapa ou busque pelo nome da rua para definir o endereço automaticamente
           </p>
@@ -241,16 +241,16 @@
       </div>
       <button
         onclick={onclose}
-        class="text-slate-400 hover:text-slate-200 p-2 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400"
+        class="text-slate-400 hover:text-slate-200 p-1.5 rounded-md hover:bg-[#182030] transition-colors cursor-pointer focus:outline-none"
         title="Fechar"
         aria-label="Fechar"
       >
-        <X class="w-5 h-5" aria-hidden="true" />
+        <X class="w-4 h-4" aria-hidden="true" />
       </button>
     </div>
 
     <!-- Search & Control Toolbar -->
-    <div class="p-4 bg-slate-950/80 border-b border-slate-800 flex flex-col sm:flex-row gap-2 shrink-0 z-10">
+    <div class="p-3.5 bg-[#090d16] border-b border-[#1b2234] flex flex-col sm:flex-row gap-2 shrink-0 z-10">
       <form onsubmit={handleSearch} class="flex-1 flex gap-2">
         <div class="relative flex-1">
           <label for="location-search-input" class="sr-only">Buscar endereço</label>
@@ -260,17 +260,17 @@
             autocomplete="off"
             bind:value={searchQuery}
             placeholder="Buscar por endereço, avenida, bairro ou ponto de referência…"
-            class="w-full pl-9 pr-4 py-2 bg-slate-900 border border-slate-700 rounded-xl text-slate-100 text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
+            class="w-full pl-9 pr-4 py-2 bg-[#0e131f] border border-[#1b2234] focus:border-emerald-500/60 rounded-lg text-slate-100 text-xs focus:outline-none transition-colors"
           />
-          <Search class="w-4 h-4 text-slate-400 absolute left-3 top-2.5 pointer-events-none" aria-hidden="true" />
+          <Search class="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5 pointer-events-none" aria-hidden="true" />
         </div>
         <button
           type="submit"
           disabled={isSearching || !searchQuery.trim()}
-          class="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-semibold text-xs shadow-md transition-colors cursor-pointer flex items-center gap-1.5 shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400"
+          class="px-3.5 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 font-semibold text-xs shadow-xs transition-all cursor-pointer flex items-center gap-1.5 shrink-0 focus:outline-none"
         >
           {#if isSearching}
-            <div class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" aria-hidden="true"></div>
+            <div class="w-3.5 h-3.5 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" aria-hidden="true"></div>
           {:else}
             <span>Buscar</span>
           {/if}
@@ -280,7 +280,7 @@
       <button
         type="button"
         onclick={handleCurrentLocation}
-        class="px-3 py-2 rounded-xl border border-slate-700 bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+        class="px-3 py-2 rounded-lg border border-[#1b2234] bg-[#0e131f] hover:bg-[#182030] text-slate-300 text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 focus:outline-none"
         title="Usar minha localização atual"
         aria-label="Usar minha localização atual"
       >
@@ -294,25 +294,25 @@
       <div bind:this={mapContainer} class="w-full h-full z-0"></div>
 
       <!-- Hint floating on top of map -->
-      <div class="absolute top-3 left-1/2 -translate-x-1/2 bg-slate-950/90 backdrop-blur border border-slate-700 text-slate-300 text-xs px-3.5 py-1.5 rounded-full shadow-lg pointer-events-none z-[400] flex items-center gap-1.5">
-        <MapPin class="w-3.5 h-3.5 text-purple-400 shrink-0" aria-hidden="true" />
-        <span>Dica: Clique em qualquer ponto do mapa ou arraste o pino para obter o endereço</span>
+      <div class="absolute top-3 left-1/2 -translate-x-1/2 bg-[#0e131f]/95 backdrop-blur-md border border-[#232d44] text-slate-300 text-xs px-3.5 py-1.5 rounded-lg shadow-lg pointer-events-none z-[400] flex items-center gap-1.5">
+        <MapPin class="w-3.5 h-3.5 text-emerald-400 shrink-0" aria-hidden="true" />
+        <span>Clique no mapa ou arraste o marcador para capturar o endereço</span>
       </div>
     </div>
 
     <!-- Bottom Selected Address Bar & Confirmation -->
-    <div class="p-4 bg-slate-900 border-t border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shrink-0 z-10">
+    <div class="p-4 bg-[#0e131f] border-t border-[#1b2234] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shrink-0 z-10">
       <div class="flex-1 min-w-0" aria-live="polite">
-        <div class="text-[11px] uppercase tracking-wider text-slate-400 font-semibold mb-0.5 flex items-center gap-2">
+        <div class="text-[11px] text-slate-400 font-medium mb-0.5 flex items-center gap-2">
           <span>Endereço Identificado:</span>
           {#if isReverseGeocoding}
-            <span class="text-purple-400 flex items-center gap-1">
-              <div class="w-3 h-3 border border-purple-400 border-t-transparent rounded-full animate-spin" aria-hidden="true"></div>
+            <span class="text-emerald-400 flex items-center gap-1">
+              <div class="w-3 h-3 border border-emerald-400 border-t-transparent rounded-full animate-spin" aria-hidden="true"></div>
               <span>Obtendo endereço…</span>
             </span>
           {/if}
         </div>
-        <div class="text-sm font-semibold text-white truncate" title={selectedAddress}>
+        <div class="text-xs sm:text-sm font-semibold text-white truncate" title={selectedAddress}>
           {selectedAddress || 'Nenhum local selecionado no mapa'}
         </div>
         {#if currentCoords}
@@ -326,20 +326,20 @@
         <button
           type="button"
           onclick={openGoogleMaps}
-          class="px-3 py-2 rounded-xl border border-slate-700 hover:border-slate-600 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+          class="px-3 py-2 rounded-lg border border-[#1b2234] hover:border-[#27324b] bg-[#141b29] text-slate-300 text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer focus:outline-none"
           title="Ver no Google Maps"
         >
-          <ExternalLink class="w-3.5 h-3.5 text-blue-400" aria-hidden="true" />
-          <span>Ver no Google Maps</span>
+          <ExternalLink class="w-3.5 h-3.5 text-slate-400" aria-hidden="true" />
+          <span>Google Maps</span>
         </button>
 
         <button
           type="button"
           onclick={confirmSelection}
           disabled={!selectedAddress}
-          class="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 font-bold text-xs shadow-md transition-colors flex items-center gap-1.5 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+          class="px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 font-semibold text-xs shadow-xs transition-all flex items-center gap-1.5 cursor-pointer focus:outline-none"
         >
-          <Check class="w-4 h-4 stroke-[3]" aria-hidden="true" />
+          <Check class="w-3.5 h-3.5 stroke-[3]" aria-hidden="true" />
           <span>Usar este Endereço</span>
         </button>
       </div>

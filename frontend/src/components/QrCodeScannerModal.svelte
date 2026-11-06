@@ -10,7 +10,7 @@
     Check,
     AlertCircle,
     QrCode,
-    Sparkles,
+    CheckCircle2,
     Building2,
     MapPin,
     Calendar,
@@ -771,7 +771,7 @@
     <!-- Footer Informativo -->
     <div class="px-5 py-2.5 bg-slate-950/60 border-t border-slate-800/80 text-[11px] text-slate-400 flex items-center justify-between">
       <span class="flex items-center gap-1 text-slate-400">
-        <Sparkles class="w-3 h-3 text-emerald-400" aria-hidden="true" /> Suporta NFC-e e NF-e de todos os estados (SP, MG, RS, PR, etc.)
+        <CheckCircle2 class="w-3 h-3 text-emerald-400" aria-hidden="true" /> Compatível com NFC-e e NF-e de todos os estados (SP, MG, RS, PR, etc.)
       </span>
       <button
         type="button"
