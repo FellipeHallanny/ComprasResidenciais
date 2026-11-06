@@ -391,21 +391,25 @@
 
 <svelte:window onclick={handleWindowClick} />
 
-<div class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-  <div class="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-4xl shadow-2xl overflow-hidden my-8">
-    
+<div class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto overscroll-contain">
+  <div
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="purchase-modal-title"
+    class="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-4xl shadow-2xl overflow-hidden my-8"
+  >
     <!-- Modal Header -->
     <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/50">
       <div class="flex items-center gap-3">
         <div class="h-9 w-9 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center border border-emerald-500/20">
           {#if step === 'review'}
-            <Check class="w-5 h-5 stroke-[2.5]" />
+            <Check class="w-5 h-5 stroke-[2.5]" aria-hidden="true" />
           {:else}
-            <FileText class="w-5 h-5" />
+            <FileText class="w-5 h-5" aria-hidden="true" />
           {/if}
         </div>
         <div>
-          <h2 class="text-lg font-bold text-white">
+          <h2 id="purchase-modal-title" class="text-lg font-bold text-white text-pretty">
             {step === 'review' ? 'Conferência do Rascunho de Compra' : 'Registrar Nova Compra'}
           </h2>
           <p class="text-xs text-slate-400">
@@ -419,36 +423,38 @@
           <button
             type="button"
             onclick={() => { isQrScannerOpen = true; }}
-            class="px-3 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
+            class="px-3 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
             title="Escanear QR Code da NFC-e"
+            aria-label="Escanear QR Code da NFC-e"
           >
-            <Camera class="w-3.5 h-3.5" />
+            <Camera class="w-3.5 h-3.5" aria-hidden="true" />
             <span class="hidden sm:inline">Ler QR Code</span>
           </button>
         {/if}
 
         <button
           onclick={onclose}
-          class="text-slate-400 hover:text-slate-200 p-2 rounded-lg hover:bg-slate-800 transition cursor-pointer"
+          class="text-slate-400 hover:text-slate-200 p-2 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
           title="Fechar"
+          aria-label="Fechar"
         >
-          <X class="w-5 h-5" />
+          <X class="w-5 h-5" aria-hidden="true" />
         </button>
       </div>
     </div>
 
     <!-- Empty Users Notice -->
     {#if userList.length === 0}
-      <div class="mx-6 mt-4 p-3.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs flex items-center gap-2">
-        <AlertCircle class="w-4 h-4 shrink-0" />
+      <div class="mx-6 mt-4 p-3.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs flex items-center gap-2" aria-live="polite">
+        <AlertCircle class="w-4 h-4 shrink-0" aria-hidden="true" />
         <span>Nenhum morador cadastrado ainda. Recomendamos cadastrar pelo menos um morador na aba <strong>Moradores</strong> antes de registrar compras.</span>
       </div>
     {/if}
 
     <!-- Error Banner -->
     {#if errorMessage}
-      <div class="mx-6 mt-4 p-3.5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
-        <AlertCircle class="w-4 h-4 shrink-0" />
+      <div class="mx-6 mt-4 p-3.5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2" aria-live="polite">
+        <AlertCircle class="w-4 h-4 shrink-0" aria-hidden="true" />
         <span>{errorMessage}</span>
       </div>
     {/if}
@@ -456,28 +462,34 @@
     <div class="p-6">
       {#if step === 'input'}
         <!-- Input Tabs -->
-        <div class="flex border-b border-slate-800 mb-6">
+        <div class="flex border-b border-slate-800 mb-6" role="tablist" aria-label="Método de captura da compra">
           <button
+            role="tab"
+            aria-selected={activeTab === 'upload'}
             onclick={() => { activeTab = 'upload'; errorMessage = ''; }}
-            class="flex items-center gap-2 px-5 py-3 font-semibold text-sm border-b-2 transition cursor-pointer {activeTab === 'upload' ? 'border-emerald-500 text-emerald-400' : 'border-transparent text-slate-400 hover:text-slate-200'}"
+            class="flex items-center gap-2 px-5 py-3 font-semibold text-sm border-b-2 transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 {activeTab === 'upload' ? 'border-emerald-500 text-emerald-400' : 'border-transparent text-slate-400 hover:text-slate-200'}"
           >
-            <Upload class="w-4 h-4" />
+            <Upload class="w-4 h-4" aria-hidden="true" />
             <span>Upload de Cupom (IA Gemini)</span>
           </button>
 
           <button
+            role="tab"
+            aria-selected={activeTab === 'sefaz'}
             onclick={() => { activeTab = 'sefaz'; errorMessage = ''; }}
-            class="flex items-center gap-2 px-5 py-3 font-semibold text-sm border-b-2 transition cursor-pointer {activeTab === 'sefaz' ? 'border-emerald-500 text-emerald-400' : 'border-transparent text-slate-400 hover:text-slate-200'}"
+            class="flex items-center gap-2 px-5 py-3 font-semibold text-sm border-b-2 transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 {activeTab === 'sefaz' ? 'border-emerald-500 text-emerald-400' : 'border-transparent text-slate-400 hover:text-slate-200'}"
           >
-            <Key class="w-4 h-4" />
+            <Key class="w-4 h-4" aria-hidden="true" />
             <span>Chave SEFAZ / QR Code</span>
           </button>
 
           <button
+            role="tab"
+            aria-selected={activeTab === 'manual'}
             onclick={() => { activeTab = 'manual'; errorMessage = ''; }}
-            class="flex items-center gap-2 px-5 py-3 font-semibold text-sm border-b-2 transition cursor-pointer {activeTab === 'manual' ? 'border-emerald-500 text-emerald-400' : 'border-transparent text-slate-400 hover:text-slate-200'}"
+            class="flex items-center gap-2 px-5 py-3 font-semibold text-sm border-b-2 transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 {activeTab === 'manual' ? 'border-emerald-500 text-emerald-400' : 'border-transparent text-slate-400 hover:text-slate-200'}"
           >
-            <Edit3 class="w-4 h-4" />
+            <Edit3 class="w-4 h-4" aria-hidden="true" />
             <span>Cadastro Manual (Feiras / Sem Nota)</span>
           </button>
         </div>
@@ -489,35 +501,36 @@
             <div class="flex flex-wrap items-center justify-between gap-3 p-3 bg-slate-950/70 border border-slate-800 rounded-2xl">
               <div class="flex items-center gap-2 text-xs text-slate-300">
                 <div class="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400">
-                  <QrCode class="w-4 h-4" />
+                  <QrCode class="w-4 h-4" aria-hidden="true" />
                 </div>
                 <span>Tem o cupom físico em mãos com QR Code impresso?</span>
               </div>
               <button
                 type="button"
                 onclick={() => { isQrScannerOpen = true; }}
-                class="px-3.5 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
+                class="px-3.5 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
               >
-                <Camera class="w-3.5 h-3.5" />
+                <Camera class="w-3.5 h-3.5" aria-hidden="true" />
                 <span>Escanear com a Câmera</span>
               </button>
             </div>
 
-            <div class="border-2 border-dashed border-slate-700 hover:border-emerald-500/60 rounded-2xl p-8 text-center transition bg-slate-950/40 relative">
+            <div class="border-2 border-dashed border-slate-700 hover:border-emerald-500/60 rounded-2xl p-8 text-center transition-colors bg-slate-950/40 relative">
               <input
                 type="file"
                 accept="image/*,application/pdf"
                 onchange={handleFileChange}
+                aria-label="Selecionar imagem ou PDF do cupom fiscal"
                 class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
               />
 
               {#if filePreview}
                 <div class="max-w-xs mx-auto mb-4 rounded-xl overflow-hidden border border-slate-700 shadow-md">
-                  <img src={filePreview} alt="Preview cupom" class="w-full h-44 object-cover" />
+                  <img src={filePreview} alt="Preview do cupom fiscal selecionado" class="w-full h-44 object-cover" width="320" height="176" />
                 </div>
               {:else}
                 <div class="w-14 h-14 rounded-2xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center mx-auto mb-3 border border-emerald-500/20">
-                  <Upload class="w-7 h-7" />
+                  <Upload class="w-7 h-7" aria-hidden="true" />
                 </div>
               {/if}
 
@@ -531,21 +544,21 @@
 
             <div class="flex items-center justify-between pt-4">
               <div class="flex items-center gap-2 text-xs text-slate-400">
-                <Sparkles class="w-4 h-4 text-emerald-400" />
+                <Sparkles class="w-4 h-4 text-emerald-400" aria-hidden="true" />
                 <span>Extração multimodal automática de itens, quantidades e valores via Gemini</span>
               </div>
 
               <button
                 onclick={submitUpload}
                 disabled={!selectedFile || isSubmitting}
-                class="px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 font-bold text-sm shadow-md transition flex items-center gap-2 cursor-pointer"
+                class="px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 font-bold text-sm shadow-md transition-colors flex items-center gap-2 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
               >
                 {#if isSubmitting}
-                  <div class="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin"></div>
-                  <span>Processando Nota com IA...</span>
+                  <div class="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" aria-hidden="true"></div>
+                  <span>Processando Nota com IA…</span>
                 {:else}
                   <span>Extrair Itens & Revisar</span>
-                  <ArrowRight class="w-4 h-4" />
+                  <ArrowRight class="w-4 h-4" aria-hidden="true" />
                 {/if}
               </button>
             </div>
@@ -559,7 +572,7 @@
             <div class="p-4 rounded-2xl bg-gradient-to-r from-emerald-950/40 via-slate-900 to-slate-950 border border-emerald-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-lg shadow-emerald-500/5">
               <div class="flex items-start gap-3">
                 <div class="h-10 w-10 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/30 mt-0.5 sm:mt-0">
-                  <Camera class="w-5 h-5" />
+                  <Camera class="w-5 h-5" aria-hidden="true" />
                 </div>
                 <div>
                   <h4 class="text-sm font-bold text-white flex items-center gap-2">
@@ -577,9 +590,9 @@
               <button
                 type="button"
                 onclick={() => { isQrScannerOpen = true; }}
-                class="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 cursor-pointer transition shrink-0 hover:scale-[1.02]"
+                class="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 cursor-pointer transition-colors shrink-0 hover:scale-[1.02] focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
               >
-                <QrCode class="w-4 h-4 stroke-[2.5]" />
+                <QrCode class="w-4 h-4 stroke-[2.5]" aria-hidden="true" />
                 <span>Abrir Câmera</span>
               </button>
             </div>
@@ -589,7 +602,7 @@
               <div class="p-4 rounded-2xl bg-emerald-950/20 border border-emerald-500/40 text-xs space-y-2 animate-in fade-in">
                 <div class="flex items-center justify-between">
                   <div class="flex items-center gap-2 text-emerald-400 font-bold">
-                    <CheckCircle2 class="w-4 h-4" />
+                    <CheckCircle2 class="w-4 h-4" aria-hidden="true" />
                     <span>QR Code Fiscal Lido com Sucesso</span>
                   </div>
                   <span class="text-[10px] text-slate-400 font-mono">
@@ -600,14 +613,14 @@
                 <div class="grid grid-cols-2 gap-2 text-[11px] text-slate-300 pt-1">
                   {#if scannedFiscalInfo.formattedCnpj}
                     <div class="flex items-center gap-1">
-                      <Building2 class="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                      <span class="font-mono text-slate-200">{scannedFiscalInfo.formattedCnpj}</span>
+                      <Building2 class="w-3.5 h-3.5 text-emerald-400 shrink-0" aria-hidden="true" />
+                      <span class="font-mono text-slate-200 tabular-nums">{scannedFiscalInfo.formattedCnpj}</span>
                     </div>
                   {/if}
                   {#if scannedFiscalInfo.issueYearMonth}
                     <div class="flex items-center gap-1">
-                      <Calendar class="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                      <span>{scannedFiscalInfo.issueYearMonth}</span>
+                      <Calendar class="w-3.5 h-3.5 text-emerald-400 shrink-0" aria-hidden="true" />
+                      <span class="tabular-nums">{scannedFiscalInfo.issueYearMonth}</span>
                     </div>
                   {/if}
                 </div>
@@ -621,16 +634,18 @@
               </label>
               <input
                 id="sefaz-key-input"
+                name="sefaz-key"
                 type="text"
+                autocomplete="off"
                 maxlength="54"
                 bind:value={fiscalKey}
                 oninput={handleFiscalKeyInput}
                 placeholder="Ex: 3524 0100 0000 0000 0000 6500 1000 0000 0010 0000 0000"
-                class="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 font-mono text-sm tracking-widest placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                class="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 font-mono text-sm tracking-widest placeholder-slate-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50"
               />
               {#if fiscalKey.replace(/\D/g, '').length === 44 && !validateFiscalKeyCheckDigit(fiscalKey)}
-                <p class="text-xs text-rose-400 mt-1.5 flex items-center gap-1">
-                  <AlertCircle class="w-3.5 h-3.5 shrink-0" />
+                <p class="text-xs text-rose-400 mt-1.5 flex items-center gap-1" aria-live="polite">
+                  <AlertCircle class="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
                   <span>Dígito verificador inválido (módulo 11). Confira se todos os dígitos foram digitados corretamente.</span>
                 </p>
               {:else}
@@ -644,14 +659,14 @@
               <button
                 onclick={submitSefaz}
                 disabled={fiscalKey.replace(/\D/g, '').length !== 44 || !validateFiscalKeyCheckDigit(fiscalKey) || isSubmitting}
-                class="px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 font-bold text-sm shadow-md transition flex items-center gap-2 cursor-pointer"
+                class="px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 font-bold text-sm shadow-md transition-colors flex items-center gap-2 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
               >
                 {#if isSubmitting}
-                  <div class="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin"></div>
-                  <span>Consultando SEFAZ...</span>
+                  <div class="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" aria-hidden="true"></div>
+                  <span>Consultando SEFAZ…</span>
                 {:else}
                   <span>Consultar & Revisar</span>
-                  <ArrowRight class="w-4 h-4" />
+                  <ArrowRight class="w-4 h-4" aria-hidden="true" />
                 {/if}
               </button>
             </div>
@@ -668,9 +683,9 @@
                 <select
                   id="manual-buyer-select"
                   bind:value={selectedUserId}
-                  class="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                  class="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-slate-200 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50"
                 >
-                  <option value="">Selecione o morador...</option>
+                  <option value="">Selecione o morador…</option>
                   {#each userList as u}
                     <option value={u.id}>{u.name}</option>
                   {/each}
@@ -683,9 +698,9 @@
                 <select
                   id="manual-store-select"
                   bind:value={selectedStoreId}
-                  class="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                  class="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-slate-200 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50"
                 >
-                  <option value="">Selecione da lista...</option>
+                  <option value="">Selecione da lista…</option>
                   {#each storeList as s}
                     <option value={s.id}>{s.name}</option>
                   {/each}
@@ -693,9 +708,11 @@
                 {#if !selectedStoreId}
                   <input
                     type="text"
+                    autocomplete="off"
+                    aria-label="Nome do estabelecimento avulso"
                     bind:value={customStoreName}
-                    placeholder="Ou digite o nome da loja/feira..."
-                    class="mt-2 w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-slate-200 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    placeholder="Ou digite o nome da loja/feira…"
+                    class="mt-2 w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-slate-200 text-xs focus:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500"
                   />
                 {/if}
               </div>
@@ -707,7 +724,7 @@
                   id="manual-date-input"
                   type="date"
                   bind:value={purchaseDate}
-                  class="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                  class="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-slate-200 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 tabular-nums"
                 />
               </div>
             </div>
@@ -715,10 +732,10 @@
             <div class="pt-2 flex justify-end">
               <button
                 onclick={proceedToManualReview}
-                class="px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm shadow-md transition flex items-center gap-2 cursor-pointer"
+                class="px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm shadow-md transition-colors flex items-center gap-2 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
               >
                 <span>Avançar para Lista de Itens</span>
-                <ArrowRight class="w-4 h-4" />
+                <ArrowRight class="w-4 h-4" aria-hidden="true" />
               </button>
             </div>
           </div>
@@ -732,14 +749,14 @@
             <!-- Morador (Mandatory) -->
             <div>
               <label for="review-buyer-select" class="block text-xs font-semibold text-emerald-400 mb-1 flex items-center gap-1.5">
-                <UserIcon class="w-3.5 h-3.5" /> Morador Comprador *
+                <UserIcon class="w-3.5 h-3.5" aria-hidden="true" /> Morador Comprador *
               </label>
               <select
                 id="review-buyer-select"
                 bind:value={selectedUserId}
-                class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-slate-200 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50"
               >
-                <option value="">Selecione o morador da casa...</option>
+                <option value="">Selecione o morador da casa…</option>
                 {#each userList as u}
                   <option value={u.id}>{u.name}</option>
                 {/each}
@@ -749,14 +766,14 @@
             <!-- Estabelecimento -->
             <div>
               <label for="review-store-select" class="block text-xs font-semibold text-slate-400 mb-1 flex items-center gap-1.5">
-                <Store class="w-3.5 h-3.5" /> Estabelecimento
+                <Store class="w-3.5 h-3.5" aria-hidden="true" /> Estabelecimento
               </label>
               <select
                 id="review-store-select"
                 bind:value={selectedStoreId}
-                class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-slate-200 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50"
               >
-                <option value="">Selecione ou mantenha detectado...</option>
+                <option value="">Selecione ou mantenha detectado…</option>
                 {#each storeList as s}
                   <option value={s.id}>{s.name}</option>
                 {/each}
@@ -766,13 +783,13 @@
             <!-- Data -->
             <div>
               <label for="review-date-input" class="block text-xs font-semibold text-slate-400 mb-1 flex items-center gap-1.5">
-                <Calendar class="w-3.5 h-3.5" /> Data da Compra
+                <Calendar class="w-3.5 h-3.5" aria-hidden="true" /> Data da Compra
               </label>
               <input
                 id="review-date-input"
                 type="date"
                 bind:value={purchaseDate}
-                class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-slate-200 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 tabular-nums"
               />
             </div>
           </div>
@@ -782,17 +799,17 @@
             <div class="flex items-center justify-between mb-2">
               <div class="flex items-center gap-2">
                 <span class="text-xs font-bold text-slate-300 uppercase tracking-wider">
-                  Itens da Compra ({editableItems.length})
+                  Itens da Compra (<span class="tabular-nums">{editableItems.length}</span>)
                 </span>
                 <span class="text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium flex items-center gap-1">
-                  <Sparkles class="w-3 h-3" /> pgvector ativo
+                  <Sparkles class="w-3 h-3" aria-hidden="true" /> pgvector ativo
                 </span>
               </div>
               <button
                 onclick={addItem}
-                class="text-xs font-semibold text-emerald-400 hover:text-emerald-300 flex items-center gap-1 cursor-pointer"
+                class="text-xs font-semibold text-emerald-400 hover:text-emerald-300 flex items-center gap-1 cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-emerald-400 rounded px-1"
               >
-                <Plus class="w-3.5 h-3.5" /> Adicionar Item
+                <Plus class="w-3.5 h-3.5" aria-hidden="true" /> Adicionar Item
               </button>
             </div>
 
@@ -818,6 +835,8 @@
                         <div class="relative flex items-center">
                           <input
                             type="text"
+                            autocomplete="off"
+                            aria-label="Descrição do Item {idx + 1}"
                             bind:value={item.raw_description}
                             oninput={(e) => handleItemDescriptionInput(idx, (e.target as HTMLInputElement).value)}
                             onfocus={() => {
@@ -826,27 +845,29 @@
                               }
                             }}
                             placeholder="Nome / Descrição da nota"
-                            class="w-full pl-2 pr-7 py-1.5 bg-slate-950 border {item.canonical_product_id ? 'border-emerald-500/60 ring-1 ring-emerald-500/30' : 'border-slate-700'} rounded text-slate-100 text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none"
+                            class="w-full pl-2 pr-7 py-1.5 bg-slate-950 border {item.canonical_product_id ? 'border-emerald-500/60 ring-1 ring-emerald-500/30' : 'border-slate-700'} rounded text-slate-100 text-xs focus:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500"
                           />
                           <button
                             type="button"
                             onclick={() => triggerItemSearch(idx)}
-                            class="absolute right-1 text-slate-400 hover:text-emerald-400 p-1 rounded transition cursor-pointer"
+                            class="absolute right-1 text-slate-400 hover:text-emerald-400 p-1 rounded transition-colors cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-emerald-400"
                             title="Buscar produtos já cadastrados com pgvector"
+                            aria-label="Buscar produto com pgvector"
                           >
-                            <Sparkles class="w-3.5 h-3.5 {isSearchingProduct && activeSearchIndex === idx ? 'animate-spin text-emerald-400' : (item.canonical_product_id ? 'text-emerald-400' : '')}" />
+                            <Sparkles class="w-3.5 h-3.5 {isSearchingProduct && activeSearchIndex === idx ? 'animate-spin text-emerald-400' : (item.canonical_product_id ? 'text-emerald-400' : '')}" aria-hidden="true" />
                           </button>
                         </div>
 
                         {#if item.canonical_product_id}
                           <div class="flex items-center gap-1 mt-1 text-[10px] text-emerald-400">
-                            <Sparkles class="w-2.5 h-2.5 shrink-0" />
+                            <Sparkles class="w-2.5 h-2.5 shrink-0" aria-hidden="true" />
                             <span class="truncate">Vinculado (pgvector)</span>
                             <button
                               type="button"
                               onclick={() => { item.canonical_product_id = undefined; }}
-                              class="text-slate-500 hover:text-rose-400 ml-0.5 cursor-pointer"
+                              class="text-slate-500 hover:text-rose-400 ml-0.5 cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-rose-400 rounded"
                               title="Desvincular produto canônico"
+                              aria-label="Desvincular produto canônico"
                             >
                               &times;
                             </button>
@@ -855,26 +876,31 @@
 
                         <!-- Autocomplete Dropdown -->
                         {#if activeSearchIndex === idx}
-                          <div class="absolute z-50 left-3 {openUpwards ? 'bottom-full mb-1' : 'top-full mt-1'} w-72 sm:w-80 bg-slate-900 border border-emerald-500/50 rounded-xl shadow-2xl overflow-hidden">
+                          <div
+                            role="listbox"
+                            aria-label="Sugestões pgvector"
+                            class="absolute z-50 left-3 {openUpwards ? 'bottom-full mb-1' : 'top-full mt-1'} w-72 sm:w-80 bg-slate-900 border border-emerald-500/50 rounded-xl shadow-2xl overflow-hidden"
+                          >
                             <div class="p-2 bg-slate-950 border-b border-slate-800 flex items-center justify-between text-[11px] text-slate-400">
                               <span class="flex items-center gap-1.5 text-emerald-400 font-semibold">
-                                <Sparkles class="w-3 h-3" /> Catálogo Inteligente (pgvector)
+                                <Sparkles class="w-3 h-3" aria-hidden="true" /> Catálogo Inteligente (pgvector)
                               </span>
                               <button
                                 type="button"
                                 onclick={() => { activeSearchIndex = null; }}
-                                class="text-slate-500 hover:text-slate-300 cursor-pointer"
+                                class="text-slate-500 hover:text-slate-300 cursor-pointer p-1 rounded focus:outline-none focus-visible:ring-1 focus-visible:ring-slate-400"
                                 title="Fechar sugestões"
+                                aria-label="Fechar sugestões"
                               >
-                                <X class="w-3.5 h-3.5" />
+                                <X class="w-3.5 h-3.5" aria-hidden="true" />
                               </button>
                             </div>
 
-                            <div class="max-h-52 overflow-y-auto divide-y divide-slate-800/60">
+                            <div class="max-h-52 overflow-y-auto divide-y divide-slate-800/60" aria-live="polite">
                               {#if isSearchingProduct}
                                 <div class="p-4 text-center text-xs text-slate-400 flex items-center justify-center gap-2">
-                                  <div class="w-3.5 h-3.5 border-2 border-emerald-500/30 border-t-emerald-400 rounded-full animate-spin"></div>
-                                  <span>Buscando produtos com IA & pgvector...</span>
+                                  <div class="w-3.5 h-3.5 border-2 border-emerald-500/30 border-t-emerald-400 rounded-full animate-spin" aria-hidden="true"></div>
+                                  <span>Buscando produtos com IA & pgvector…</span>
                                 </div>
                               {:else if searchResults.length === 0}
                                 <div class="p-3 text-center text-xs text-slate-400">
@@ -885,8 +911,10 @@
                                 {#each searchResults as product}
                                   <button
                                     type="button"
+                                    role="option"
+                                    aria-selected={item.canonical_product_id === product.id}
                                     onclick={() => selectProductForIndex(idx, product)}
-                                    class="w-full text-left px-3 py-2 hover:bg-slate-800/80 transition flex items-center justify-between group cursor-pointer"
+                                    class="w-full text-left px-3 py-2 hover:bg-slate-800/80 transition-colors flex items-center justify-between group cursor-pointer focus:outline-none focus-visible:bg-slate-800"
                                   >
                                     <div class="min-w-0 pr-2">
                                       <div class="font-medium text-slate-200 group-hover:text-emerald-400 transition-colors truncate">
@@ -913,8 +941,10 @@
                           type="number"
                           step="any"
                           min="0.01"
+                          autocomplete="off"
+                          aria-label="Quantidade do item {idx + 1}"
                           bind:value={item.quantity}
-                          class="w-full px-2 py-1 bg-slate-950 border border-slate-700 rounded text-slate-100 text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none"
+                          class="w-full px-2 py-1 bg-slate-950 border border-slate-700 rounded text-slate-100 text-xs focus:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 tabular-nums"
                         />
                       </td>
                       <td class="px-3 py-2">
@@ -922,14 +952,17 @@
                           type="number"
                           step="any"
                           min="0.01"
+                          autocomplete="off"
+                          aria-label="Tamanho da embalagem do item {idx + 1}"
                           bind:value={item.package_size}
-                          class="w-full px-2 py-1 bg-slate-950 border border-slate-700 rounded text-slate-100 text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none"
+                          class="w-full px-2 py-1 bg-slate-950 border border-slate-700 rounded text-slate-100 text-xs focus:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 tabular-nums"
                         />
                       </td>
                       <td class="px-3 py-2">
                         <select
                           bind:value={item.package_unit}
-                          class="w-full px-2 py-1 bg-slate-950 border border-slate-700 rounded text-slate-100 text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none"
+                          aria-label="Unidade do item {idx + 1}"
+                          class="w-full px-2 py-1 bg-slate-950 border border-slate-700 rounded text-slate-100 text-xs focus:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500"
                         >
                           {#each units as u}
                             <option value={u}>{u}</option>
@@ -941,11 +974,13 @@
                           type="number"
                           step="0.01"
                           min="0"
+                          autocomplete="off"
+                          aria-label="Preço total do item {idx + 1}"
                           bind:value={item.total_price}
-                          class="w-full px-2 py-1 bg-slate-950 border border-slate-700 rounded text-slate-100 text-xs text-right font-mono focus:ring-1 focus:ring-emerald-500 focus:outline-none"
+                          class="w-full px-2 py-1 bg-slate-950 border border-slate-700 rounded text-slate-100 text-xs text-right font-mono focus:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 tabular-nums"
                         />
                       </td>
-                      <td class="px-3 py-2 text-right font-mono font-bold text-emerald-400">
+                      <td class="px-3 py-2 text-right font-mono font-bold text-emerald-400 tabular-nums">
                         {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(norm)}
                         <span class="text-[10px] text-slate-400 font-normal">/{item.package_unit === 'g' ? 'kg' : (item.package_unit === 'ml' ? 'L' : item.package_unit)}</span>
                       </td>
@@ -953,10 +988,11 @@
                         <button
                           onclick={() => removeItem(idx)}
                           disabled={editableItems.length === 1}
-                          class="text-slate-500 hover:text-rose-400 disabled:opacity-20 transition cursor-pointer"
+                          class="text-slate-500 hover:text-rose-400 disabled:opacity-20 transition-colors cursor-pointer p-1 rounded focus:outline-none focus-visible:ring-1 focus-visible:ring-rose-400"
                           title="Remover item"
+                          aria-label="Remover item {idx + 1}"
                         >
-                          <Trash2 class="w-3.5 h-3.5" />
+                          <Trash2 class="w-3.5 h-3.5" aria-hidden="true" />
                         </button>
                       </td>
                     </tr>
@@ -970,7 +1006,7 @@
           <div class="flex flex-col sm:flex-row items-center justify-between gap-4 pt-3 border-t border-slate-800">
             <div>
               <span class="text-xs text-slate-400 uppercase font-semibold">Valor Total Calculado:</span>
-              <div class="text-2xl font-black text-white font-mono tracking-tight">
+              <div class="text-2xl font-black text-white font-mono tracking-tight tabular-nums">
                 {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(reviewTotal)}
               </div>
             </div>
@@ -978,7 +1014,7 @@
             <div class="flex items-center gap-3">
               <button
                 onclick={() => { step = 'input'; }}
-                class="px-4 py-2.5 rounded-xl border border-slate-700 text-slate-300 hover:bg-slate-800 text-xs font-semibold transition cursor-pointer"
+                class="px-4 py-2.5 rounded-xl border border-slate-700 text-slate-300 hover:bg-slate-800 text-xs font-semibold transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
               >
                 Voltar
               </button>
@@ -986,13 +1022,13 @@
               <button
                 onclick={handleConfirmAndSave}
                 disabled={isSubmitting || !selectedUserId}
-                class="px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 font-bold text-sm shadow-lg shadow-emerald-500/20 transition flex items-center gap-2 cursor-pointer"
+                class="px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 font-bold text-sm shadow-lg shadow-emerald-500/20 transition-colors flex items-center gap-2 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
               >
                 {#if isSubmitting}
-                  <div class="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin"></div>
-                  <span>Salvando no Banco & pgvector...</span>
+                  <div class="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" aria-hidden="true"></div>
+                  <span>Salvando no Banco & pgvector…</span>
                 {:else}
-                  <Check class="w-4 h-4 stroke-[3]" />
+                  <Check class="w-4 h-4 stroke-[3]" aria-hidden="true" />
                   <span>Confirmar e Salvar Compra</span>
                 {/if}
               </button>

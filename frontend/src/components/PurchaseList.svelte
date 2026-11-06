@@ -9,8 +9,7 @@
     CheckCircle,
     Clock,
     X,
-    Eye,
-    Tag
+    Eye
   } from '@lucide/svelte';
   import { api } from '../lib/api';
 
@@ -76,8 +75,8 @@
   <!-- Controls bar -->
   <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900 border border-slate-800 p-4 rounded-2xl">
     <div>
-      <h2 class="text-lg font-bold text-white flex items-center gap-2">
-        <ReceiptText class="w-5 h-5 text-emerald-400" />
+      <h2 class="text-lg font-bold text-white flex items-center gap-2 text-pretty">
+        <ReceiptText class="w-5 h-5 text-emerald-400" aria-hidden="true" />
         Histórico Geral de Compras
       </h2>
       <p class="text-xs text-slate-400 mt-0.5">
@@ -86,22 +85,22 @@
     </div>
 
     <!-- Filter Buttons -->
-    <div class="flex items-center gap-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs font-medium">
+    <div class="flex items-center gap-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs font-medium" role="group" aria-label="Filtrar por status da compra">
       <button
         onclick={() => filterStatus = 'ALL'}
-        class="px-3 py-1.5 rounded-lg transition cursor-pointer {filterStatus === 'ALL' ? 'bg-slate-800 text-emerald-400 shadow-sm' : 'text-slate-400 hover:text-slate-200'}"
+        class="px-3 py-1.5 rounded-lg transition-colors cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-emerald-400 {filterStatus === 'ALL' ? 'bg-slate-800 text-emerald-400 shadow-sm' : 'text-slate-400 hover:text-slate-200'}"
       >
-        Todas ({purchaseList.length})
+        Todas (<span class="tabular-nums">{purchaseList.length}</span>)
       </button>
       <button
         onclick={() => filterStatus = 'CONFIRMED'}
-        class="px-3 py-1.5 rounded-lg transition cursor-pointer {filterStatus === 'CONFIRMED' ? 'bg-slate-800 text-emerald-400 shadow-sm' : 'text-slate-400 hover:text-slate-200'}"
+        class="px-3 py-1.5 rounded-lg transition-colors cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-emerald-400 {filterStatus === 'CONFIRMED' ? 'bg-slate-800 text-emerald-400 shadow-sm' : 'text-slate-400 hover:text-slate-200'}"
       >
         Confirmadas
       </button>
       <button
         onclick={() => filterStatus = 'DRAFT'}
-        class="px-3 py-1.5 rounded-lg transition cursor-pointer {filterStatus === 'DRAFT' ? 'bg-slate-800 text-amber-400 shadow-sm' : 'text-slate-400 hover:text-slate-200'}"
+        class="px-3 py-1.5 rounded-lg transition-colors cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-emerald-400 {filterStatus === 'DRAFT' ? 'bg-slate-800 text-amber-400 shadow-sm' : 'text-slate-400 hover:text-slate-200'}"
       >
         Rascunhos
       </button>
@@ -112,12 +111,12 @@
   <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-sm">
     {#if loading}
       <div class="p-8 text-center text-slate-400 text-sm">
-        <div class="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-        Carregando compras...
+        <div class="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" aria-hidden="true"></div>
+        Carregando compras…
       </div>
     {:else if filteredList.length === 0}
       <div class="p-12 text-center text-slate-400 text-sm">
-        <ReceiptText class="w-10 h-10 text-slate-600 mx-auto mb-3" />
+        <ReceiptText class="w-10 h-10 text-slate-600 mx-auto mb-3" aria-hidden="true" />
         <p class="font-semibold text-slate-300">Nenhuma compra encontrada</p>
         <p class="text-xs text-slate-500 mt-1">
           {purchaseList.length === 0 ? 'Nenhuma compra foi registrada no sistema ainda. Clique em "Registrar Compra" no topo para começar!' : 'Nenhuma compra corresponde ao filtro selecionado.'}
@@ -128,9 +127,9 @@
         <table class="w-full text-left text-sm text-slate-300">
           <thead class="text-xs uppercase bg-slate-950/70 text-slate-400 border-b border-slate-800 font-semibold tracking-wider">
             <tr>
-              <th class="px-5 py-3.5"><div class="flex items-center gap-1.5"><Calendar class="w-3.5 h-3.5" /> Data</div></th>
-              <th class="px-5 py-3.5"><div class="flex items-center gap-1.5"><StoreIcon class="w-3.5 h-3.5" /> Estabelecimento</div></th>
-              <th class="px-5 py-3.5"><div class="flex items-center gap-1.5"><UserIcon class="w-3.5 h-3.5" /> Comprador</div></th>
+              <th class="px-5 py-3.5"><div class="flex items-center gap-1.5"><Calendar class="w-3.5 h-3.5" aria-hidden="true" /> Data</div></th>
+              <th class="px-5 py-3.5"><div class="flex items-center gap-1.5"><StoreIcon class="w-3.5 h-3.5" aria-hidden="true" /> Estabelecimento</div></th>
+              <th class="px-5 py-3.5"><div class="flex items-center gap-1.5"><UserIcon class="w-3.5 h-3.5" aria-hidden="true" /> Comprador</div></th>
               <th class="px-5 py-3.5">Origem</th>
               <th class="px-5 py-3.5">Status</th>
               <th class="px-5 py-3.5 text-right">Valor Total</th>
@@ -140,7 +139,7 @@
           <tbody class="divide-y divide-slate-800/60">
             {#each filteredList as p}
               <tr class="hover:bg-slate-800/40 transition-colors">
-                <td class="px-5 py-3.5 font-medium text-slate-300 whitespace-nowrap">
+                <td class="px-5 py-3.5 font-medium text-slate-300 whitespace-nowrap font-mono tabular-nums">
                   {formatDate(p.purchased_at)}
                 </td>
                 <td class="px-5 py-3.5 font-semibold text-white whitespace-nowrap">
@@ -154,7 +153,7 @@
                 <td class="px-5 py-3.5 whitespace-nowrap">
                   {#if p.origin === 'LLM_UPLOAD'}
                     <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-500/10 text-purple-400 border border-purple-500/20">
-                      <Sparkles class="w-3 h-3" /> IA Cupom
+                      <Sparkles class="w-3 h-3" aria-hidden="true" /> IA Cupom
                     </span>
                   {:else if p.origin === 'SEFAZ'}
                     <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20">
@@ -169,24 +168,25 @@
                 <td class="px-5 py-3.5 whitespace-nowrap">
                   {#if p.status === 'CONFIRMED'}
                     <span class="inline-flex items-center gap-1 text-xs text-emerald-400 font-semibold">
-                      <CheckCircle class="w-3.5 h-3.5" /> Confirmada
+                      <CheckCircle class="w-3.5 h-3.5" aria-hidden="true" /> Confirmada
                     </span>
                   {:else}
                     <span class="inline-flex items-center gap-1 text-xs text-amber-400 font-semibold">
-                      <Clock class="w-3.5 h-3.5" /> Rascunho
+                      <Clock class="w-3.5 h-3.5" aria-hidden="true" /> Rascunho
                     </span>
                   {/if}
                 </td>
-                <td class="px-5 py-3.5 text-right font-extrabold text-white font-mono whitespace-nowrap">
+                <td class="px-5 py-3.5 text-right font-extrabold text-white font-mono whitespace-nowrap tabular-nums">
                   {formatBRL(p.total_amount)}
                 </td>
                 <td class="px-5 py-3.5 text-center whitespace-nowrap">
                   <button
                     onclick={() => openDetails(p)}
-                    class="p-1.5 rounded-lg bg-slate-800 hover:bg-emerald-500/10 text-slate-300 hover:text-emerald-400 transition cursor-pointer"
+                    class="p-1.5 rounded-lg bg-slate-800 hover:bg-emerald-500/10 text-slate-300 hover:text-emerald-400 transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
                     title="Ver itens da compra"
+                    aria-label="Ver itens da compra de {formatDate(p.purchased_at)}"
                   >
-                    <Eye class="w-4 h-4" />
+                    <Eye class="w-4 h-4" aria-hidden="true" />
                   </button>
                 </td>
               </tr>
@@ -200,12 +200,17 @@
 
 <!-- Purchase Detail Modal -->
 {#if selectedPurchase}
-  <div class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden">
+  <div class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overscroll-contain">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="purchase-detail-title"
+      class="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden"
+    >
       <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
         <div>
-          <h3 class="text-base font-bold text-white flex items-center gap-2">
-            <ReceiptText class="w-4 h-4 text-emerald-400" />
+          <h3 id="purchase-detail-title" class="text-base font-bold text-white flex items-center gap-2 text-pretty">
+            <ReceiptText class="w-4 h-4 text-emerald-400" aria-hidden="true" />
             Detalhes da Compra
           </h3>
           <p class="text-xs text-slate-400">
@@ -214,9 +219,11 @@
         </div>
         <button
           onclick={() => selectedPurchase = null}
-          class="text-slate-400 hover:text-slate-200 p-2 rounded-lg hover:bg-slate-800 transition cursor-pointer"
+          class="text-slate-400 hover:text-slate-200 p-2 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+          title="Fechar"
+          aria-label="Fechar detalhes da compra"
         >
-          <X class="w-5 h-5" />
+          <X class="w-5 h-5" aria-hidden="true" />
         </button>
       </div>
 
@@ -239,8 +246,8 @@
                     <td class="px-4 py-2.5 text-slate-400 font-mono">
                       {item.quantity}x {item.package_size} {item.package_unit}
                     </td>
-                    <td class="px-4 py-2.5 text-right font-medium">{formatBRL(item.total_price)}</td>
-                    <td class="px-4 py-2.5 text-right font-bold text-emerald-400 font-mono">
+                    <td class="px-4 py-2.5 text-right font-medium tabular-nums">{formatBRL(item.total_price)}</td>
+                    <td class="px-4 py-2.5 text-right font-bold text-emerald-400 font-mono tabular-nums">
                       {item.normalized_price ? `${formatBRL(item.normalized_price)}/${item.package_unit === 'g' ? 'kg' : (item.package_unit === 'ml' ? 'L' : item.package_unit)}` : '-'}
                     </td>
                   </tr>
@@ -254,7 +261,7 @@
 
         <div class="mt-4 pt-4 border-t border-slate-800 flex justify-between items-center">
           <span class="text-xs text-slate-400 uppercase font-semibold">Valor Total da Nota:</span>
-          <span class="text-xl font-bold text-white font-mono">{formatBRL(selectedPurchase.total_amount)}</span>
+          <span class="text-xl font-bold text-white font-mono tabular-nums">{formatBRL(selectedPurchase.total_amount)}</span>
         </div>
       </div>
     </div>

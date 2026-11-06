@@ -17,9 +17,7 @@
     FileCheck2,
     ShieldAlert,
     RefreshCw,
-    Lock,
-    HelpCircle,
-    Image as ImageIcon
+    Lock
   } from '@lucide/svelte';
   import { Html5Qrcode, type CameraDevice } from 'html5-qrcode';
   import { parseNfceFromText, type ParsedNfceInfo } from '../lib/nfce';
@@ -172,7 +170,7 @@
         finalizeStartSuccess();
         return;
       } catch (idErr) {
-        console.warn('Falha com ID específico, tentando modo traseiro...', idErr);
+        console.warn('Falha com ID específico, tentando modo traseiro…', idErr);
       }
     }
 
@@ -182,7 +180,7 @@
       finalizeStartSuccess();
       return;
     } catch (envErr) {
-      console.warn('Falha facingMode environment, tentando webcam frontal...', envErr);
+      console.warn('Falha facingMode environment, tentando webcam frontal…', envErr);
     }
 
     // Tentativa 3: Frontal / Webcam notebook (user)
@@ -191,7 +189,7 @@
       finalizeStartSuccess();
       return;
     } catch (userErr) {
-      console.warn('Falha facingMode user, tentando dispositivos enumerados...', userErr);
+      console.warn('Falha facingMode user, tentando dispositivos enumerados…', userErr);
     }
 
     // Tentativa 4: Iterar em todas as câmeras listadas pelo sistema
@@ -382,19 +380,24 @@
   capture="environment"
   onchange={handleFileScan}
   class="hidden"
+  aria-label="Upload de foto ou cupom fiscal"
 />
 
-<div class="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-  <div class="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden my-auto flex flex-col">
-    
+<div class="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-y-auto overscroll-contain">
+  <div
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="qr-modal-title"
+    class="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden my-auto flex flex-col"
+  >
     <!-- Modal Header -->
     <div class="px-5 py-3.5 border-b border-slate-800 flex items-center justify-between bg-slate-900/80">
       <div class="flex items-center gap-2.5">
         <div class="h-8 w-8 rounded-xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center border border-emerald-500/30">
-          <QrCode class="w-4 h-4 stroke-[2.5]" />
+          <QrCode class="w-4 h-4 stroke-[2.5]" aria-hidden="true" />
         </div>
         <div>
-          <h3 class="text-sm font-bold text-white flex items-center gap-2">
+          <h3 id="qr-modal-title" class="text-sm font-bold text-white flex items-center gap-2">
             <span>Leitor de QR Code de Cupom Fiscal</span>
             <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
               NFC-e
@@ -409,21 +412,27 @@
       <button
         type="button"
         onclick={onclose}
-        class="text-slate-400 hover:text-slate-200 p-1.5 rounded-lg hover:bg-slate-800 transition cursor-pointer"
+        class="text-slate-400 hover:text-slate-200 p-1.5 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+        aria-label="Fechar modal"
         title="Fechar"
       >
-        <X class="w-5 h-5" />
+        <X class="w-5 h-5" aria-hidden="true" />
       </button>
     </div>
 
     <!-- Banner Superior de Erro (se houver mensagem e scanner ativo ou foto com falha) -->
     {#if errorMessage && (isScanning || failureReason === null)}
-      <div class="mx-4 mt-3 p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs flex items-center justify-between gap-2 animate-in fade-in">
+      <div role="status" aria-live="polite" class="mx-4 mt-3 p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs flex items-center justify-between gap-2 animate-in fade-in">
         <div class="flex items-center gap-2">
-          <AlertCircle class="w-4 h-4 shrink-0" />
+          <AlertCircle class="w-4 h-4 shrink-0" aria-hidden="true" />
           <span>{errorMessage}</span>
         </div>
-        <button type="button" onclick={() => (errorMessage = '')} class="text-slate-400 hover:text-white text-xs">&times;</button>
+        <button
+          type="button"
+          onclick={() => (errorMessage = '')}
+          class="text-slate-400 hover:text-white text-xs cursor-pointer p-1 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
+          aria-label="Fechar mensagem de erro"
+        >&times;</button>
       </div>
     {/if}
 
@@ -434,7 +443,7 @@
         <div class="w-full bg-slate-950/80 border border-emerald-500/40 rounded-2xl p-4 space-y-3.5 animate-in fade-in zoom-in-95 duration-200">
           <div class="flex items-center gap-2.5 text-emerald-400 font-bold text-xs uppercase tracking-wider pb-2 border-b border-slate-800">
             <div class="h-6 w-6 rounded-full bg-emerald-500/20 flex items-center justify-center">
-              <Check class="w-3.5 h-3.5 stroke-[3]" />
+              <Check class="w-3.5 h-3.5 stroke-[3]" aria-hidden="true" />
             </div>
             <span>QR Code Fiscal Decodificado com Sucesso!</span>
           </div>
@@ -444,7 +453,7 @@
             <span class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">
               Chave de Acesso (44 dígitos)
             </span>
-            <div class="p-2.5 bg-slate-900 border border-slate-700/80 rounded-xl font-mono text-xs text-emerald-300 break-all select-all leading-relaxed">
+            <div class="p-2.5 bg-slate-900 border border-slate-700/80 rounded-xl font-mono tabular-nums text-xs text-emerald-300 break-all select-all leading-relaxed">
               {scannedInfo.formattedKey}
             </div>
           </div>
@@ -452,34 +461,34 @@
           <!-- Metadados da NFC-e Extraídos do Código Fiscal -->
           <div class="grid grid-cols-2 gap-2 text-xs">
             <div class="p-2.5 bg-slate-900/60 border border-slate-800 rounded-xl">
-              <span class="text-[10px] text-slate-400 block flex items-center gap-1">
-                <MapPin class="w-3 h-3 text-emerald-400" /> Estado / UF:
+              <span class="text-[10px] text-slate-400 flex items-center gap-1">
+                <MapPin class="w-3 h-3 text-emerald-400" aria-hidden="true" /> Estado / UF:
               </span>
               <strong class="text-white text-xs mt-0.5 block">{scannedInfo.stateUf} (Código {scannedInfo.stateCode})</strong>
             </div>
 
             <div class="p-2.5 bg-slate-900/60 border border-slate-800 rounded-xl">
-              <span class="text-[10px] text-slate-400 block flex items-center gap-1">
-                <Calendar class="w-3 h-3 text-emerald-400" /> Emissão:
+              <span class="text-[10px] text-slate-400 flex items-center gap-1">
+                <Calendar class="w-3 h-3 text-emerald-400" aria-hidden="true" /> Emissão:
               </span>
-              <strong class="text-white text-xs mt-0.5 block">{scannedInfo.issueYearMonth}</strong>
+              <strong class="text-white text-xs mt-0.5 block tabular-nums">{scannedInfo.issueYearMonth}</strong>
             </div>
 
             <div class="p-2.5 bg-slate-900/60 border border-slate-800 rounded-xl col-span-2">
-              <span class="text-[10px] text-slate-400 block flex items-center gap-1">
-                <Building2 class="w-3 h-3 text-emerald-400" /> CNPJ do Estabelecimento:
+              <span class="text-[10px] text-slate-400 flex items-center gap-1">
+                <Building2 class="w-3 h-3 text-emerald-400" aria-hidden="true" /> CNPJ do Estabelecimento:
               </span>
-              <strong class="text-white font-mono text-xs mt-0.5 block">{scannedInfo.formattedCnpj || scannedInfo.storeCnpj}</strong>
+              <strong class="text-white font-mono tabular-nums text-xs mt-0.5 block">{scannedInfo.formattedCnpj || scannedInfo.storeCnpj}</strong>
             </div>
 
             <div class="p-2.5 bg-slate-900/60 border border-slate-800 rounded-xl">
               <span class="text-[10px] text-slate-400 block">Modelo:</span>
-              <strong class="text-emerald-400 text-xs mt-0.5 block">{scannedInfo.model}</strong>
+              <strong class="text-emerald-400 text-xs mt-0.5 block tabular-nums">{scannedInfo.model}</strong>
             </div>
 
             <div class="p-2.5 bg-slate-900/60 border border-slate-800 rounded-xl">
               <span class="text-[10px] text-slate-400 block">Número do Cupom:</span>
-              <strong class="text-white font-mono text-xs mt-0.5 block">Nº {scannedInfo.number} (Série {scannedInfo.series})</strong>
+              <strong class="text-white font-mono tabular-nums text-xs mt-0.5 block">Nº {scannedInfo.number} (Série {scannedInfo.series})</strong>
             </div>
           </div>
 
@@ -488,18 +497,18 @@
             <button
               type="button"
               onclick={handleRescan}
-              class="px-3.5 py-2.5 rounded-xl border border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800 text-xs font-semibold transition cursor-pointer flex items-center gap-1.5"
+              class="px-3.5 py-2.5 rounded-xl border border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800 text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
             >
-              <RefreshCw class="w-3.5 h-3.5" />
+              <RefreshCw class="w-3.5 h-3.5" aria-hidden="true" />
               <span>Escanear Outro</span>
             </button>
 
             <button
               type="button"
               onclick={handleConfirmUse}
-              class="flex-1 px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs shadow-lg shadow-emerald-500/20 transition flex items-center justify-center gap-1.5 cursor-pointer"
+              class="flex-1 px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs shadow-lg shadow-emerald-500/20 transition-colors flex items-center justify-center gap-1.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
             >
-              <FileCheck2 class="w-4 h-4" />
+              <FileCheck2 class="w-4 h-4" aria-hidden="true" />
               <span>Usar esta Chave Fiscal</span>
             </button>
           </div>
@@ -513,9 +522,9 @@
 
           <!-- Estado 1: Inicializando / Carregando câmera -->
           {#if isInitializing}
-            <div class="absolute inset-0 bg-slate-950 flex flex-col items-center justify-center gap-3 text-slate-400 text-xs p-6 text-center animate-in fade-in">
-              <div class="w-9 h-9 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-              <span class="font-semibold text-slate-200 text-sm">Conectando à câmera...</span>
+            <div class="absolute inset-0 bg-slate-950 flex flex-col items-center justify-center gap-3 text-slate-400 text-xs p-6 text-center animate-in fade-in" aria-live="polite">
+              <div class="w-9 h-9 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" aria-hidden="true"></div>
+              <span class="font-semibold text-slate-200 text-sm">Conectando à câmera…</span>
               <p class="text-[11px] text-slate-400 max-w-xs">
                 Se o navegador solicitar permissão, clique em <strong>"Permitir"</strong>.
               </p>
@@ -523,19 +532,19 @@
 
           <!-- Estado 2: Falha por Permissão Negada -->
           {:else if failureReason === 'permission_denied'}
-            <div class="absolute inset-0 bg-slate-950/95 flex flex-col items-center justify-center gap-3 p-6 text-center animate-in fade-in">
+            <div role="alert" class="absolute inset-0 bg-slate-950/95 flex flex-col items-center justify-center gap-3 p-6 text-center animate-in fade-in">
               <div class="h-12 w-12 rounded-2xl bg-amber-500/15 text-amber-400 flex items-center justify-center border border-amber-500/30">
-                <ShieldAlert class="w-6 h-6" />
+                <ShieldAlert class="w-6 h-6" aria-hidden="true" />
               </div>
               <div>
                 <h4 class="text-sm font-bold text-amber-300">Permissão de Câmera Bloqueada</h4>
-                <p class="text-xs text-slate-300 mt-1 max-w-xs">
+                <p class="text-xs text-slate-300 mt-1 max-w-xs text-pretty">
                   O navegador bloqueou o acesso à câmera neste site.
                 </p>
               </div>
               <div class="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-[11px] text-left text-slate-300 space-y-1 w-full max-w-xs">
                 <div class="flex items-center gap-1.5 text-amber-400 font-semibold text-[10px] uppercase tracking-wider">
-                  <Lock class="w-3 h-3" /> Como desbloquear:
+                  <Lock class="w-3 h-3" aria-hidden="true" /> Como desbloquear:
                 </div>
                 <p>1. Clique no <strong>ícone de cadeado / configurações</strong> na barra de endereços do navegador.</p>
                 <p>2. Mude a permissão de <strong>Câmera</strong> para <strong>Permitir</strong>.</p>
@@ -545,17 +554,17 @@
                 <button
                   type="button"
                   onclick={startScanner}
-                  class="w-full px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-md transition flex items-center justify-center gap-1.5 cursor-pointer"
+                  class="w-full px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-md transition-colors flex items-center justify-center gap-1.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
                 >
-                  <RefreshCw class="w-3.5 h-3.5" />
+                  <RefreshCw class="w-3.5 h-3.5" aria-hidden="true" />
                   <span>Tentar Novamente</span>
                 </button>
                 <button
                   type="button"
                   onclick={triggerFileInput}
-                  class="w-full px-4 py-2 rounded-xl border border-slate-700 bg-slate-900 hover:bg-slate-800 text-slate-200 text-xs font-semibold transition flex items-center justify-center gap-1.5 cursor-pointer"
+                  class="w-full px-4 py-2 rounded-xl border border-slate-700 bg-slate-900 hover:bg-slate-800 text-slate-200 text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
                 >
-                  <Camera class="w-3.5 h-3.5 text-emerald-400" />
+                  <Camera class="w-3.5 h-3.5 text-emerald-400" aria-hidden="true" />
                   <span>Tirar Foto / Carregar da Galeria</span>
                 </button>
               </div>
@@ -563,13 +572,13 @@
 
           <!-- Estado 3: Falha por Nenhuma Câmera Detectada (Desktop sem webcam) -->
           {:else if failureReason === 'no_camera'}
-            <div class="absolute inset-0 bg-slate-950/95 flex flex-col items-center justify-center gap-3 p-6 text-center animate-in fade-in">
+            <div role="alert" class="absolute inset-0 bg-slate-950/95 flex flex-col items-center justify-center gap-3 p-6 text-center animate-in fade-in">
               <div class="h-12 w-12 rounded-2xl bg-rose-500/15 text-rose-400 flex items-center justify-center border border-rose-500/30">
-                <CameraOff class="w-6 h-6" />
+                <CameraOff class="w-6 h-6" aria-hidden="true" />
               </div>
               <div>
                 <h4 class="text-sm font-bold text-white">Nenhuma Câmera Detectada</h4>
-                <p class="text-xs text-slate-400 mt-1 max-w-xs">
+                <p class="text-xs text-slate-400 mt-1 max-w-xs text-pretty">
                   Este computador não possui webcam conectada ou ela está desativada no sistema operacional.
                 </p>
               </div>
@@ -577,17 +586,17 @@
                 <button
                   type="button"
                   onclick={triggerFileInput}
-                  class="w-full px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs shadow-lg shadow-emerald-500/20 transition flex items-center justify-center gap-2 cursor-pointer"
+                  class="w-full px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs shadow-lg shadow-emerald-500/20 transition-colors flex items-center justify-center gap-2 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
                 >
-                  <Upload class="w-4 h-4" />
+                  <Upload class="w-4 h-4" aria-hidden="true" />
                   <span>Carregar Imagem / Foto do Cupom</span>
                 </button>
                 <button
                   type="button"
                   onclick={startScanner}
-                  class="w-full px-4 py-2 rounded-xl border border-slate-700 bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs font-semibold transition flex items-center justify-center gap-1.5 cursor-pointer"
+                  class="w-full px-4 py-2 rounded-xl border border-slate-700 bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
                 >
-                  <RefreshCw class="w-3.5 h-3.5" />
+                  <RefreshCw class="w-3.5 h-3.5" aria-hidden="true" />
                   <span>Tentar Detectar Câmera Novamente</span>
                 </button>
               </div>
@@ -595,13 +604,13 @@
 
           <!-- Estado 4: Contexto Inseguro (HTTP na rede local) -->
           {:else if failureReason === 'insecure_context'}
-            <div class="absolute inset-0 bg-slate-950/95 flex flex-col items-center justify-center gap-3 p-6 text-center animate-in fade-in">
+            <div role="alert" class="absolute inset-0 bg-slate-950/95 flex flex-col items-center justify-center gap-3 p-6 text-center animate-in fade-in">
               <div class="h-12 w-12 rounded-2xl bg-sky-500/15 text-sky-400 flex items-center justify-center border border-sky-500/30">
-                <ShieldAlert class="w-6 h-6" />
+                <ShieldAlert class="w-6 h-6" aria-hidden="true" />
               </div>
               <div>
                 <h4 class="text-sm font-bold text-sky-300">Acesso via Rede Local (HTTP)</h4>
-                <p class="text-xs text-slate-300 mt-1 max-w-xs">
+                <p class="text-xs text-slate-300 mt-1 max-w-xs text-pretty">
                   Por restrição de segurança dos navegadores, streaming de câmera ao vivo exige <strong>HTTPS</strong> ou <strong>localhost</strong>.
                 </p>
               </div>
@@ -612,9 +621,9 @@
                 <button
                   type="button"
                   onclick={triggerFileInput}
-                  class="w-full px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs shadow-lg shadow-emerald-500/20 transition flex items-center justify-center gap-2 cursor-pointer"
+                  class="w-full px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs shadow-lg shadow-emerald-500/20 transition-colors flex items-center justify-center gap-2 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
                 >
-                  <Camera class="w-4 h-4" />
+                  <Camera class="w-4 h-4" aria-hidden="true" />
                   <span>Tirar Foto com a Câmera do Celular</span>
                 </button>
                 <div class="p-2 rounded-xl bg-slate-900 border border-slate-800 text-[10px] text-slate-400 text-left">
@@ -626,13 +635,13 @@
 
           <!-- Estado 5: Câmera Ocupada ou Erro Geral -->
           {:else if failureReason === 'busy' || (!isScanning && failureReason !== null)}
-            <div class="absolute inset-0 bg-slate-950/95 flex flex-col items-center justify-center gap-3 p-6 text-center animate-in fade-in">
+            <div role="alert" class="absolute inset-0 bg-slate-950/95 flex flex-col items-center justify-center gap-3 p-6 text-center animate-in fade-in">
               <div class="h-12 w-12 rounded-2xl bg-amber-500/15 text-amber-400 flex items-center justify-center border border-amber-500/30">
-                <AlertCircle class="w-6 h-6" />
+                <AlertCircle class="w-6 h-6" aria-hidden="true" />
               </div>
               <div>
                 <h4 class="text-sm font-bold text-amber-300">Não foi possível iniciar o vídeo</h4>
-                <p class="text-xs text-slate-300 mt-1 max-w-xs">
+                <p class="text-xs text-slate-300 mt-1 max-w-xs text-pretty">
                   {errorMessage || 'A câmera pode estar em uso por outro aplicativo (Zoom, Teams, etc.) ou o driver falhou.'}
                 </p>
               </div>
@@ -640,17 +649,17 @@
                 <button
                   type="button"
                   onclick={startScanner}
-                  class="w-full px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-md transition flex items-center justify-center gap-1.5 cursor-pointer"
+                  class="w-full px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-md transition-colors flex items-center justify-center gap-1.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
                 >
-                  <RefreshCw class="w-3.5 h-3.5" />
+                  <RefreshCw class="w-3.5 h-3.5" aria-hidden="true" />
                   <span>Tentar Ligar Câmera Novamente</span>
                 </button>
                 <button
                   type="button"
                   onclick={triggerFileInput}
-                  class="w-full px-4 py-2 rounded-xl border border-slate-700 bg-slate-900 hover:bg-slate-800 text-slate-200 text-xs font-semibold transition flex items-center justify-center gap-1.5 cursor-pointer"
+                  class="w-full px-4 py-2 rounded-xl border border-slate-700 bg-slate-900 hover:bg-slate-800 text-slate-200 text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
                 >
-                  <Camera class="w-3.5 h-3.5 text-emerald-400" />
+                  <Camera class="w-3.5 h-3.5 text-emerald-400" aria-hidden="true" />
                   <span>Tirar Foto / Carregar da Galeria</span>
                 </button>
               </div>
@@ -660,27 +669,27 @@
           {:else if !isScanning}
             <div class="absolute inset-0 bg-slate-950/95 flex flex-col items-center justify-center gap-3 text-center p-6 animate-in fade-in">
               <div class="h-12 w-12 rounded-2xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center border border-emerald-500/20">
-                <Camera class="w-6 h-6" />
+                <Camera class="w-6 h-6" aria-hidden="true" />
               </div>
               <h4 class="text-sm font-bold text-white">Leitor de QR Code</h4>
-              <p class="text-xs text-slate-400 max-w-xs">
+              <p class="text-xs text-slate-400 max-w-xs text-pretty">
                 Inicie a câmera para fazer a leitura em tempo real ou tire uma foto do cupom fiscal:
               </p>
               <div class="w-full max-w-xs space-y-2 pt-1">
                 <button
                   type="button"
                   onclick={startScanner}
-                  class="w-full px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs shadow-lg shadow-emerald-500/20 transition flex items-center justify-center gap-2 cursor-pointer"
+                  class="w-full px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs shadow-lg shadow-emerald-500/20 transition-colors flex items-center justify-center gap-2 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
                 >
-                  <Camera class="w-4 h-4" />
+                  <Camera class="w-4 h-4" aria-hidden="true" />
                   <span>Iniciar Câmera ao Vivo</span>
                 </button>
                 <button
                   type="button"
                   onclick={triggerFileInput}
-                  class="w-full px-4 py-2 rounded-xl border border-slate-700 bg-slate-900 hover:bg-slate-800 text-slate-200 text-xs font-semibold transition flex items-center justify-center gap-2 cursor-pointer"
+                  class="w-full px-4 py-2 rounded-xl border border-slate-700 bg-slate-900 hover:bg-slate-800 text-slate-200 text-xs font-semibold transition-colors flex items-center justify-center gap-2 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
                 >
-                  <Upload class="w-3.5 h-3.5 text-emerald-400" />
+                  <Upload class="w-3.5 h-3.5 text-emerald-400" aria-hidden="true" />
                   <span>Tirar Foto / Carregar Imagem</span>
                 </button>
               </div>
@@ -689,7 +698,7 @@
 
           <!-- Overlay Guia com Cantos de Foco & Linha Laser (quando a câmera está ativa) -->
           {#if isScanning}
-            <div class="absolute inset-0 pointer-events-none flex items-center justify-center">
+            <div class="absolute inset-0 pointer-events-none flex items-center justify-center" aria-hidden="true">
               <div class="w-[72%] h-[72%] relative border border-emerald-500/40 rounded-2xl shadow-[0_0_0_9999px_rgba(2,6,23,0.65)]">
                 <!-- Cantos Marcadores -->
                 <div class="absolute -top-0.5 -left-0.5 w-6 h-6 border-t-3 border-l-3 border-emerald-400 rounded-tl-xl"></div>
@@ -710,9 +719,11 @@
           {#if cameras.length > 1}
             <div class="relative flex-1">
               <select
+                id="camera-select"
+                aria-label="Selecionar câmera"
                 value={selectedCameraId}
                 onchange={(e) => switchCamera((e.target as HTMLSelectElement).value)}
-                class="w-full px-2.5 py-1.5 bg-slate-950 border border-slate-800 rounded-xl text-[11px] text-slate-300 focus:outline-none cursor-pointer"
+                class="w-full px-2.5 py-1.5 bg-slate-950 border border-slate-800 rounded-xl text-[11px] text-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 cursor-pointer"
               >
                 {#each cameras as cam, idx}
                   <option value={cam.id}>
@@ -728,14 +739,15 @@
             <button
               type="button"
               onclick={toggleTorch}
-              class="px-3 py-1.5 rounded-xl border border-slate-800 hover:border-slate-700 bg-slate-950 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer {isTorchOn ? 'text-amber-300 border-amber-500/50 bg-amber-500/10' : 'text-slate-400'}"
+              aria-label={isTorchOn ? "Desligar lanterna" : "Ligar lanterna"}
+              class="px-3 py-1.5 rounded-xl border border-slate-800 hover:border-slate-700 bg-slate-950 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 {isTorchOn ? 'text-amber-300 border-amber-500/50 bg-amber-500/10' : 'text-slate-400'}"
               title="Ligar/Desligar Flash"
             >
               {#if isTorchOn}
-                <Zap class="w-3.5 h-3.5 fill-amber-400" />
+                <Zap class="w-3.5 h-3.5 fill-amber-400" aria-hidden="true" />
                 <span>Flash Ligado</span>
               {:else}
-                <ZapOff class="w-3.5 h-3.5" />
+                <ZapOff class="w-3.5 h-3.5" aria-hidden="true" />
                 <span>Flash</span>
               {/if}
             </button>
@@ -745,10 +757,11 @@
           <button
             type="button"
             onclick={triggerFileInput}
-            class="px-3.5 py-1.5 rounded-xl border border-slate-800 hover:border-slate-700 bg-slate-950 hover:bg-slate-800/60 text-slate-300 hover:text-white text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer ml-auto"
+            aria-label="Tirar foto com o app de câmera do celular ou escolher da galeria"
+            class="px-3.5 py-1.5 rounded-xl border border-slate-800 hover:border-slate-700 bg-slate-950 hover:bg-slate-800/60 text-slate-300 hover:text-white text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ml-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
             title="Tirar foto com o app de câmera do celular ou escolher da galeria"
           >
-            <Camera class="w-3.5 h-3.5 text-emerald-400" />
+            <Camera class="w-3.5 h-3.5 text-emerald-400" aria-hidden="true" />
             <span>Tirar Foto / Galeria</span>
           </button>
         </div>
@@ -758,9 +771,13 @@
     <!-- Footer Informativo -->
     <div class="px-5 py-2.5 bg-slate-950/60 border-t border-slate-800/80 text-[11px] text-slate-400 flex items-center justify-between">
       <span class="flex items-center gap-1 text-slate-400">
-        <Sparkles class="w-3 h-3 text-emerald-400" /> Suporta NFC-e e NF-e de todos os estados (SP, MG, RS, PR, etc.)
+        <Sparkles class="w-3 h-3 text-emerald-400" aria-hidden="true" /> Suporta NFC-e e NF-e de todos os estados (SP, MG, RS, PR, etc.)
       </span>
-      <button type="button" onclick={onclose} class="text-slate-400 hover:text-white transition cursor-pointer text-xs">
+      <button
+        type="button"
+        onclick={onclose}
+        class="text-slate-400 hover:text-white transition-colors cursor-pointer text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 rounded px-1.5 py-0.5"
+      >
         Fechar
       </button>
     </div>
@@ -784,5 +801,13 @@
 
   .animate-laser-scan {
     animation: laser-scan 2s ease-in-out infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-laser-scan {
+      animation: none;
+      top: 50%;
+      opacity: 0.8;
+    }
   }
 </style>

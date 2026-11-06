@@ -171,7 +171,7 @@
   <!-- Splash / Loading Inicial -->
   <div class="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-slate-400">
     <div class="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-    <span class="text-sm font-medium">Iniciando Compras Residenciais...</span>
+    <span class="text-sm font-medium">Iniciando Compras Residenciais…</span>
   </div>
 {:else if !auth.isAuthenticated}
   <!-- Tela de Login / Setup Inicial do Administrador -->
@@ -183,6 +183,14 @@
 {:else}
   <!-- Aplicação Autenticada -->
   <div class="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-emerald-500 selection:text-slate-950">
+    <!-- Skip to content link for accessibility -->
+    <a
+      href="#main-content"
+      class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:bg-emerald-500 focus:text-slate-950 focus:rounded-xl focus:font-bold focus:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+    >
+      Pular para o conteúdo principal
+    </a>
+
     <!-- Header de Navegação Superior -->
     <Header
       {activeTab}
@@ -193,13 +201,17 @@
 
     <!-- Global Alert Notification -->
     {#if globalNotification}
-      <div class="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 mt-4">
+      <div class="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 mt-4" aria-live="polite">
         <div class="p-3.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs flex items-center justify-between">
           <div class="flex items-center gap-2">
-            <CheckCircle2 class="w-4 h-4 text-emerald-400" />
+            <CheckCircle2 class="w-4 h-4 text-emerald-400" aria-hidden="true" />
             <span>{globalNotification}</span>
           </div>
-          <button onclick={() => (globalNotification = null)} class="text-emerald-400 hover:text-emerald-200">
+          <button
+            onclick={() => (globalNotification = null)}
+            class="text-emerald-400 hover:text-emerald-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 rounded p-1"
+            aria-label="Fechar notificação"
+          >
             &times;
           </button>
         </div>
@@ -207,17 +219,16 @@
     {/if}
 
     <!-- Main Content Container -->
-    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {#if activeTab === 'dashboard'}
-        <!-- Zero Data Welcome Banner -->
+    <main id="main-content" class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {#if activeTab === 'dashboard'}\n        <!-- Zero Data Welcome Banner -->
         {#if !loadingUsers && !loadingStores && users.length === 0 && stores.length === 0}
           <div class="mb-8 p-6 rounded-2xl bg-gradient-to-r from-slate-900 to-slate-800/90 border border-emerald-500/30 shadow-xl">
             <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
                 <div class="flex items-center gap-2 text-emerald-400 text-xs font-semibold uppercase tracking-wider mb-1">
-                  <Sparkles class="w-4 h-4" /> Banco de Dados Limpo & Pronto
+                  <Sparkles class="w-4 h-4" aria-hidden="true" /> Banco de Dados Limpo & Pronto
                 </div>
-                <h3 class="text-xl font-bold text-white">Bem-vindo ao Compras Residenciais!</h3>
+                <h3 class="text-xl font-bold text-white text-pretty">Bem-vindo ao Compras Residenciais!</h3>
                 <p class="text-xs text-slate-300 max-w-xl mt-1">
                   Seu banco de dados foi iniciado do zero. Para começar o acompanhamento de preços, cadastre os moradores e supermercados da casa.
                 </p>
@@ -225,16 +236,16 @@
               <div class="flex flex-wrap items-center gap-2">
                 <button
                   onclick={() => (activeTab = 'household')}
-                  class="px-4 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
+                  class="px-4 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
                 >
-                  <Users class="w-3.5 h-3.5" />
+                  <Users class="w-3.5 h-3.5" aria-hidden="true" />
                   <span>1. Cadastrar Morador</span>
                 </button>
                 <button
                   onclick={() => (activeTab = 'stores')}
-                  class="px-4 py-2 rounded-xl bg-purple-500/15 hover:bg-purple-500/25 border border-purple-500/30 text-purple-300 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
+                  class="px-4 py-2 rounded-xl bg-purple-500/15 hover:bg-purple-500/25 border border-purple-500/30 text-purple-300 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400"
                 >
-                  <StoreIcon class="w-3.5 h-3.5" />
+                  <StoreIcon class="w-3.5 h-3.5" aria-hidden="true" />
                   <span>2. Cadastrar Loja</span>
                 </button>
               </div>
@@ -322,7 +333,7 @@
         <span>Controle e Inteligência de Compras Residenciais &bull; Svelte 5 &amp; Go Hexagonal</span>
         <div class="flex items-center gap-4">
           <span class="flex items-center gap-1.5 text-slate-400">
-            <span class="w-2 h-2 rounded-full bg-emerald-400 inline-block animate-ping"></span>
+            <span class="w-2 h-2 rounded-full bg-emerald-400 inline-block animate-ping" aria-hidden="true"></span>
             PostgreSQL 16 com pgvector
           </span>
         </div>

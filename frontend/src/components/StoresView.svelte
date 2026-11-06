@@ -210,10 +210,10 @@
   <div class="bg-slate-900 border border-slate-800 p-5 rounded-2xl">
     <div class="flex items-center gap-3">
       <div class="p-2.5 rounded-xl bg-purple-500/10 text-purple-400">
-        <StoreIcon class="w-5 h-5" />
+        <StoreIcon class="w-5 h-5" aria-hidden="true" />
       </div>
       <div>
-        <h2 class="text-lg font-bold text-white">Estabelecimentos Comerciais</h2>
+        <h2 class="text-lg font-bold text-white text-pretty">Estabelecimentos Comerciais</h2>
         <p class="text-xs text-slate-400">
           Supermercados, atacadistas, feiras e comércios locais monitorados
         </p>
@@ -222,14 +222,14 @@
   </div>
 
   {#if feedbackMessage}
-    <div class="p-3.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs flex items-center gap-2">
-      <CheckCircle class="w-4 h-4 shrink-0" />
+    <div class="p-3.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs flex items-center gap-2" aria-live="polite">
+      <CheckCircle class="w-4 h-4 shrink-0" aria-hidden="true" />
       <span>{feedbackMessage}</span>
     </div>
   {/if}
   {#if errorMessage}
-    <div class="p-3.5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
-      <AlertCircle class="w-4 h-4 shrink-0" />
+    <div class="p-3.5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2" aria-live="polite">
+      <AlertCircle class="w-4 h-4 shrink-0" aria-hidden="true" />
       <span>{errorMessage}</span>
     </div>
   {/if}
@@ -240,19 +240,20 @@
       <div class="flex items-center justify-between mb-3">
         <h3 class="text-sm font-bold text-white flex items-center gap-2">
           {#if editingStore}
-            <Pencil class="w-4 h-4 text-amber-400" />
-            Editar Estabelecimento
+            <Pencil class="w-4 h-4 text-amber-400" aria-hidden="true" />
+            <span>Editar Estabelecimento</span>
           {:else}
-            <Plus class="w-4 h-4 text-emerald-400" />
-            Novo Estabelecimento
+            <Plus class="w-4 h-4 text-emerald-400" aria-hidden="true" />
+            <span>Novo Estabelecimento</span>
           {/if}
         </h3>
         {#if editingStore}
           <button
             onclick={cancelEdit}
-            class="text-xs text-slate-400 hover:text-slate-200 flex items-center gap-1 cursor-pointer"
+            class="text-xs text-slate-400 hover:text-slate-200 flex items-center gap-1 cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-slate-400 rounded px-1"
+            aria-label="Cancelar edição"
           >
-            <X class="w-3.5 h-3.5" /> Cancelar
+            <X class="w-3.5 h-3.5" aria-hidden="true" /> <span>Cancelar</span>
           </button>
         {/if}
       </div>
@@ -262,10 +263,12 @@
           <label for="store-name" class="block text-xs font-semibold text-slate-300 mb-1">Nome Fantasia *</label>
           <input
             id="store-name"
+            name="store-name"
             type="text"
+            autocomplete="organization"
             bind:value={name}
             placeholder="Ex: Pão de Açúcar / Assaí / Feira Livre"
-            class="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none"
+            class="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 text-xs focus:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500"
           />
         </div>
 
@@ -273,10 +276,12 @@
           <label for="store-cnpj" class="block text-xs font-semibold text-slate-300 mb-1">CNPJ (opcional)</label>
           <input
             id="store-cnpj"
+            name="store-cnpj"
             type="text"
+            autocomplete="off"
             bind:value={cnpj}
             placeholder="00.000.000/0000-00"
-            class="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none"
+            class="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 text-xs focus:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500 font-mono"
           />
         </div>
 
@@ -284,16 +289,16 @@
         <div class="p-3.5 bg-slate-950/70 border border-slate-800 rounded-xl space-y-3">
           <div class="flex items-center justify-between gap-2">
             <span class="text-xs font-semibold text-purple-400 flex items-center gap-1.5 shrink-0">
-              <MapPin class="w-3.5 h-3.5" /> Localização & Endereço
+              <MapPin class="w-3.5 h-3.5" aria-hidden="true" /> Localização & Endereço
             </span>
 
             <button
               type="button"
               onclick={() => (isMapModalOpen = true)}
-              class="text-[11px] font-semibold text-purple-400 hover:text-purple-300 bg-purple-500/10 hover:bg-purple-500/20 px-2.5 py-1 rounded-lg border border-purple-500/30 flex items-center gap-1 transition cursor-pointer shrink-0"
+              class="text-[11px] font-semibold text-purple-400 hover:text-purple-300 bg-purple-500/10 hover:bg-purple-500/20 px-2.5 py-1 rounded-lg border border-purple-500/30 flex items-center gap-1 transition-colors cursor-pointer shrink-0 focus:outline-none focus-visible:ring-1 focus-visible:ring-purple-400"
               title="Abrir mapa interativo para clicar no local"
             >
-              <Map class="w-3 h-3" />
+              <Map class="w-3 h-3" aria-hidden="true" />
               <span>Selecionar no Mapa</span>
             </button>
           </div>
@@ -306,7 +311,9 @@
                 <div class="relative flex-1 min-w-0">
                   <input
                     id="store-cep"
+                    name="postal-code"
                     type="text"
+                    autocomplete="postal-code"
                     maxlength="9"
                     bind:value={cep}
                     onkeydown={(e) => {
@@ -316,20 +323,21 @@
                       }
                     }}
                     placeholder="00000-000"
-                    class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-slate-100 text-xs focus:ring-1 focus:ring-purple-500 focus:outline-none"
+                    class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-slate-100 text-xs focus:outline-none focus-visible:ring-1 focus-visible:ring-purple-500 font-mono"
                   />
                 </div>
                 <button
                   type="button"
                   onclick={searchCep}
                   disabled={isSearchingCep || cep.replace(/\D/g, '').length !== 8}
-                  class="shrink-0 px-3.5 py-2 bg-purple-600 hover:bg-purple-500 disabled:opacity-40 text-white rounded-xl text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 shadow-sm"
+                  class="shrink-0 px-3.5 py-2 bg-purple-600 hover:bg-purple-500 disabled:opacity-40 text-white rounded-xl text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1.5 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400"
                   title="Consultar CEP nos Correios"
+                  aria-label="Buscar CEP nos Correios"
                 >
                   {#if isSearchingCep}
-                    <div class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <div class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" aria-hidden="true"></div>
                   {:else}
-                    <Search class="w-3.5 h-3.5" />
+                    <Search class="w-3.5 h-3.5" aria-hidden="true" />
                   {/if}
                   <span>Buscar CEP</span>
                 </button>
@@ -340,18 +348,20 @@
               <label for="store-number" class="block text-[11px] text-slate-400 mb-1">Número / Complemento (opcional)</label>
               <input
                 id="store-number"
+                name="address-line2"
                 type="text"
+                autocomplete="address-line2"
                 bind:value={streetNumber}
                 oninput={handleNumberInput}
                 placeholder="Ex: 1500, Bloco B ou S/N"
-                class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-slate-100 text-xs focus:ring-1 focus:ring-purple-500 focus:outline-none"
+                class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-slate-100 text-xs focus:outline-none focus-visible:ring-1 focus-visible:ring-purple-500"
               />
             </div>
           </div>
 
           {#if cepFeedback}
-            <div class="text-[11px] text-emerald-400 flex items-center gap-1">
-              <CheckCircle class="w-3 h-3 shrink-0" />
+            <div class="text-[11px] text-emerald-400 flex items-center gap-1" aria-live="polite">
+              <CheckCircle class="w-3 h-3 shrink-0" aria-hidden="true" />
               <span>{cepFeedback}</span>
             </div>
           {/if}
@@ -361,10 +371,12 @@
             <label for="store-address" class="block text-[11px] text-slate-400 mb-1">Endereço Completo</label>
             <textarea
               id="store-address"
+              name="street-address"
+              autocomplete="street-address"
               rows="2"
               bind:value={address}
               placeholder="Ex: Av. Brigadeiro Faria Lima, 1200 - Pinheiros, São Paulo - SP"
-              class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-slate-100 text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none"
+              class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-slate-100 text-xs focus:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500"
             ></textarea>
           </div>
 
@@ -373,9 +385,9 @@
               <button
                 type="button"
                 onclick={() => openGoogleMapsSearch(name ? `${name} ${address}` : address)}
-                class="text-[11px] text-blue-400 hover:text-blue-300 hover:underline flex items-center gap-1 cursor-pointer"
+                class="text-[11px] text-blue-400 hover:text-blue-300 hover:underline flex items-center gap-1 cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-400 rounded"
               >
-                <ExternalLink class="w-3 h-3" />
+                <ExternalLink class="w-3 h-3" aria-hidden="true" />
                 <span>Conferir no Google Maps</span>
               </button>
             </div>
@@ -387,7 +399,7 @@
             <button
               type="button"
               onclick={cancelEdit}
-              class="px-3 py-2.5 rounded-xl border border-slate-700 text-slate-300 hover:bg-slate-800 font-semibold text-xs transition cursor-pointer"
+              class="px-3 py-2.5 rounded-xl border border-slate-700 text-slate-300 hover:bg-slate-800 font-semibold text-xs transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
             >
               Cancelar
             </button>
@@ -395,13 +407,13 @@
           <button
             type="submit"
             disabled={isSubmitting || !name.trim()}
-            class="flex-1 py-2.5 rounded-xl {editingStore ? 'bg-amber-500 hover:bg-amber-400 text-slate-950' : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950'} disabled:opacity-50 font-bold text-xs shadow-md transition cursor-pointer flex items-center justify-center gap-1.5"
+            class="flex-1 py-2.5 rounded-xl {editingStore ? 'bg-amber-500 hover:bg-amber-400 text-slate-950' : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950'} disabled:opacity-50 font-bold text-xs shadow-md transition-colors cursor-pointer flex items-center justify-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
           >
             {#if isSubmitting}
-              <div class="w-3.5 h-3.5 border-2 border-slate-950 border-t-transparent rounded-full animate-spin"></div>
-              <span>Salvando...</span>
+              <div class="w-3.5 h-3.5 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" aria-hidden="true"></div>
+              <span>Salvando…</span>
             {:else if editingStore}
-              <Check class="w-3.5 h-3.5 stroke-[3]" />
+              <Check class="w-3.5 h-3.5 stroke-[3]" aria-hidden="true" />
               <span>Salvar Alterações</span>
             {:else}
               <span>Salvar Estabelecimento</span>
@@ -418,10 +430,10 @@
       </div>
 
       {#if loading}
-        <div class="p-8 text-center text-slate-400 text-sm">Carregando estabelecimentos...</div>
+        <div class="p-8 text-center text-slate-400 text-sm">Carregando estabelecimentos…</div>
       {:else if storeList.length === 0}
         <div class="p-10 text-center text-slate-400 space-y-2">
-          <Building2 class="w-8 h-8 text-slate-600 mx-auto" />
+          <Building2 class="w-8 h-8 text-slate-600 mx-auto" aria-hidden="true" />
           <p class="text-sm font-semibold text-slate-300">Nenhum estabelecimento cadastrado ainda</p>
           <p class="text-xs text-slate-500 max-w-sm mx-auto">
             Cadastre os supermercados, feiras ou mercearias onde você costuma realizar compras.
@@ -430,10 +442,10 @@
       {:else}
         <div class="divide-y divide-slate-800/60">
           {#each storeList as s}
-            <div class="p-4 flex items-center justify-between hover:bg-slate-800/30 transition {editingStore?.id === s.id ? 'bg-slate-800/50 border-l-2 border-amber-400' : ''}">
+            <div class="p-4 flex items-center justify-between hover:bg-slate-800/30 transition-colors {editingStore?.id === s.id ? 'bg-slate-800/50 border-l-2 border-amber-400' : ''}">
               <div class="flex items-center gap-3">
                 <div class="h-10 w-10 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center font-bold border border-purple-500/20 shrink-0">
-                  <Building2 class="w-5 h-5" />
+                  <Building2 class="w-5 h-5" aria-hidden="true" />
                 </div>
                 <div>
                   <div class="font-semibold text-white text-sm">
@@ -441,19 +453,19 @@
                   </div>
                   <div class="text-xs text-slate-400 flex flex-wrap items-center gap-2 mt-0.5">
                     {#if s.cnpj}
-                      <span class="font-mono">CNPJ: {s.cnpj}</span>
+                      <span class="font-mono tabular-nums">CNPJ: {s.cnpj}</span>
                     {/if}
                     {#if s.address}
                       <span class="flex items-center gap-1 text-slate-400">
-                        <MapPin class="w-3 h-3 text-purple-400 shrink-0" />
+                        <MapPin class="w-3 h-3 text-purple-400 shrink-0" aria-hidden="true" />
                         <span>{s.address}</span>
                       </span>
                       <button
                         onclick={() => openGoogleMapsSearch(`${s.name} ${s.address}`)}
-                        class="text-[11px] text-blue-400 hover:text-blue-300 hover:underline flex items-center gap-0.5 cursor-pointer ml-1"
+                        class="text-[11px] text-blue-400 hover:text-blue-300 hover:underline flex items-center gap-0.5 cursor-pointer ml-1 focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-400 rounded"
                         title="Abrir no Google Maps"
                       >
-                        <ExternalLink class="w-3 h-3" />
+                        <ExternalLink class="w-3 h-3" aria-hidden="true" />
                         <span>Google Maps</span>
                       </button>
                     {/if}
@@ -464,17 +476,19 @@
               <div class="flex items-center gap-1.5 shrink-0 ml-2">
                 <button
                   onclick={() => startEdit(s)}
-                  class="p-2 rounded-lg bg-slate-800 hover:bg-amber-500/10 text-slate-400 hover:text-amber-400 transition cursor-pointer"
+                  class="p-2 rounded-lg bg-slate-800 hover:bg-amber-500/10 text-slate-400 hover:text-amber-400 transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
                   title="Editar Estabelecimento"
+                  aria-label="Editar {s.name}"
                 >
-                  <Pencil class="w-4 h-4" />
+                  <Pencil class="w-4 h-4" aria-hidden="true" />
                 </button>
                 <button
                   onclick={() => handleDeleteStore(s)}
-                  class="p-2 rounded-lg bg-slate-800 hover:bg-rose-500/10 text-slate-400 hover:text-rose-400 transition cursor-pointer"
+                  class="p-2 rounded-lg bg-slate-800 hover:bg-rose-500/10 text-slate-400 hover:text-rose-400 transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"
                   title="Excluir Estabelecimento"
+                  aria-label="Excluir {s.name}"
                 >
-                  <Trash2 class="w-4 h-4" />
+                  <Trash2 class="w-4 h-4" aria-hidden="true" />
                 </button>
               </div>
             </div>

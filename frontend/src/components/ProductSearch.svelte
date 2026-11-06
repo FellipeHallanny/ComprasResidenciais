@@ -77,7 +77,7 @@
 
 <div class="relative w-full max-w-3xl mx-auto mb-8">
   <div class="text-center mb-4">
-    <h2 class="text-xl sm:text-2xl font-bold text-white tracking-tight">
+    <h2 class="text-xl sm:text-2xl font-bold text-white tracking-tight text-pretty">
       Inteligência de Mercado e Normalização
     </h2>
     <p class="text-sm text-slate-400 mt-1">
@@ -87,29 +87,33 @@
 
   <!-- Search Input Container -->
   <div class="relative">
+    <label for="product-search-input" class="sr-only">Pesquisar produto canônico</label>
     <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
-      <Search class="w-5 h-5 text-emerald-400" />
+      <Search class="w-5 h-5 text-emerald-400" aria-hidden="true" />
     </div>
 
     <input
+      id="product-search-input"
       type="text"
+      autocomplete="off"
       value={query}
       oninput={handleInput}
       onfocus={() => { if (searchResults.length > 0) showDropdown = true; }}
-      placeholder="Pesquisar produto canônico (ex: Arroz, Detergente, Leite Integral)..."
-      class="w-full pl-12 pr-12 py-3.5 bg-slate-900 border border-slate-700/80 rounded-2xl text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all text-base shadow-lg shadow-black/20"
+      placeholder="Pesquisar produto canônico (ex: Arroz, Detergente, Leite Integral)…"
+      class="w-full pl-12 pr-12 py-3.5 bg-slate-900 border border-slate-700/80 rounded-2xl text-slate-100 placeholder-slate-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 focus-visible:border-emerald-500 transition-colors text-base shadow-lg shadow-black/20"
     />
 
     <div class="absolute inset-y-0 right-0 pr-4 flex items-center gap-2">
       {#if isSearching}
-        <div class="w-4 h-4 border-2 border-emerald-500/30 border-t-emerald-400 rounded-full animate-spin"></div>
+        <div class="w-4 h-4 border-2 border-emerald-500/30 border-t-emerald-400 rounded-full animate-spin" aria-hidden="true"></div>
       {:else if query}
         <button
           onclick={handleClear}
-          class="text-slate-400 hover:text-slate-200 transition cursor-pointer"
+          class="text-slate-400 hover:text-slate-200 transition-colors cursor-pointer p-1 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
           title="Limpar busca"
+          aria-label="Limpar busca"
         >
-          <X class="w-4 h-4" />
+          <X class="w-4 h-4" aria-hidden="true" />
         </button>
       {/if}
       <span class="text-[10px] uppercase font-semibold px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700 hidden sm:inline-block">
@@ -120,19 +124,26 @@
 
   <!-- Autocomplete Dropdown -->
   {#if showDropdown && searchResults.length > 0}
-    <div class="absolute z-50 left-0 right-0 mt-2 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl overflow-hidden max-h-80 overflow-y-auto">
+    <div
+      role="listbox"
+      aria-label="Sugestões de produtos"
+      aria-live="polite"
+      class="absolute z-50 left-0 right-0 mt-2 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl overflow-hidden max-h-80 overflow-y-auto"
+    >
       <div class="p-2 border-b border-slate-800 flex items-center justify-between text-xs text-slate-400 font-medium">
         <span class="flex items-center gap-1.5 text-emerald-400">
-          <Sparkles class="w-3.5 h-3.5" /> Produtos Encontrados via Busca Semântica
+          <Sparkles class="w-3.5 h-3.5" aria-hidden="true" /> Produtos Encontrados via Busca Semântica
         </span>
-        <span>{searchResults.length} {searchResults.length === 1 ? 'resultado' : 'resultados'}</span>
+        <span class="tabular-nums">{searchResults.length} {searchResults.length === 1 ? 'resultado' : 'resultados'}</span>
       </div>
 
       <div class="divide-y divide-slate-800/60">
         {#each searchResults as product}
           <button
+            role="option"
+            aria-selected={selectedProduct?.id === product.id}
             onclick={() => handleSelect(product)}
-            class="w-full text-left px-4 py-3 hover:bg-slate-800/70 transition flex items-center justify-between group cursor-pointer"
+            class="w-full text-left px-4 py-3 hover:bg-slate-800/70 transition-colors flex items-center justify-between group cursor-pointer focus:outline-none focus-visible:bg-slate-800/90"
           >
             <div>
               <div class="font-medium text-slate-200 group-hover:text-emerald-400 transition-colors">
@@ -156,12 +167,12 @@
   <!-- Quick suggestions tags -->
   <div class="flex items-center gap-2 mt-3 flex-wrap justify-center text-xs">
     <span class="text-slate-500 flex items-center gap-1">
-      <Tag class="w-3 h-3" /> Sugestões:
+      <Tag class="w-3 h-3" aria-hidden="true" /> Sugestões:
     </span>
     {#each quickSuggestions as suggestion}
       <button
         onclick={() => handleQuickSearch(suggestion)}
-        class="px-2.5 py-1 rounded-lg bg-slate-800/70 hover:bg-slate-800 text-slate-400 hover:text-emerald-400 border border-slate-700/60 transition cursor-pointer"
+        class="px-2.5 py-1 rounded-lg bg-slate-800/70 hover:bg-slate-800 text-slate-400 hover:text-emerald-400 border border-slate-700/60 transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
       >
         {suggestion}
       </button>
@@ -172,7 +183,7 @@
   {#if selectedProduct}
     <div class="mt-4 flex items-center justify-between p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs sm:text-sm">
       <div class="flex items-center gap-2">
-        <Sparkles class="w-4 h-4 text-emerald-400 shrink-0" />
+        <Sparkles class="w-4 h-4 text-emerald-400 shrink-0" aria-hidden="true" />
         <span>
           Produto Ativo: <strong class="text-white font-semibold">{selectedProduct.name}</strong> 
           <span class="text-emerald-400/80">({selectedProduct.category || 'Geral'} • R$/{selectedProduct.base_unit})</span>
@@ -180,7 +191,7 @@
       </div>
       <button
         onclick={() => handleClear()}
-        class="text-xs text-emerald-400 hover:underline cursor-pointer"
+        class="text-xs text-emerald-400 hover:underline cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-emerald-400 rounded px-1"
       >
         Trocar produto
       </button>

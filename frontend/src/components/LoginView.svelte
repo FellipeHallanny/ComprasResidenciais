@@ -61,7 +61,7 @@
     errorMessage = '';
     try {
       await auth.setupInitialAdmin(name.trim(), email.trim(), password);
-      successMessage = 'Administrador inicial criado com sucesso! Redirecionando...';
+      successMessage = 'Administrador inicial criado com sucesso! Redirecionando…';
       setTimeout(() => {
         onsuccess();
       }, 600);
@@ -73,22 +73,22 @@
   }
 </script>
 
-<div class="min-h-screen bg-slate-950 flex flex-col justify-center items-center p-4 relative overflow-hidden select-none">
+<div class="min-h-screen bg-slate-950 flex flex-col justify-center items-center p-4 relative overflow-hidden">
   <!-- Glowing background ambient blobs -->
-  <div class="absolute -top-32 -left-32 w-96 h-96 bg-purple-600/20 rounded-full blur-3xl pointer-events-none"></div>
-  <div class="absolute -bottom-32 -right-32 w-96 h-96 bg-emerald-500/15 rounded-full blur-3xl pointer-events-none"></div>
+  <div class="absolute -top-32 -left-32 w-96 h-96 bg-purple-600/20 rounded-full blur-3xl pointer-events-none" aria-hidden="true"></div>
+  <div class="absolute -bottom-32 -right-32 w-96 h-96 bg-emerald-500/15 rounded-full blur-3xl pointer-events-none" aria-hidden="true"></div>
 
   <div class="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl relative z-10">
     <!-- Header / Brand -->
     <div class="text-center mb-8">
       <div class="inline-flex p-3 rounded-2xl bg-gradient-to-tr from-purple-600 to-indigo-600 text-white shadow-lg shadow-purple-500/25 mb-3">
         {#if isSetupMode}
-          <ShieldCheck class="w-8 h-8" />
+          <ShieldCheck class="w-8 h-8" aria-hidden="true" />
         {:else}
-          <Lock class="w-8 h-8" />
+          <Lock class="w-8 h-8" aria-hidden="true" />
         {/if}
       </div>
-      <h1 class="text-2xl font-bold text-white tracking-tight">
+      <h1 class="text-2xl font-bold text-white tracking-tight text-pretty">
         Compras Residenciais
       </h1>
       <p class="text-xs text-slate-400 mt-1">
@@ -101,15 +101,15 @@
     </div>
 
     {#if errorMessage}
-      <div class="mb-5 p-3.5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
-        <AlertCircle class="w-4 h-4 shrink-0" />
+      <div class="mb-5 p-3.5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2" aria-live="polite">
+        <AlertCircle class="w-4 h-4 shrink-0" aria-hidden="true" />
         <span>{errorMessage}</span>
       </div>
     {/if}
 
     {#if successMessage}
-      <div class="mb-5 p-3.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs flex items-center gap-2">
-        <CheckCircle2 class="w-4 h-4 shrink-0" />
+      <div class="mb-5 p-3.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs flex items-center gap-2" aria-live="polite">
+        <CheckCircle2 class="w-4 h-4 shrink-0" aria-hidden="true" />
         <span>{successMessage}</span>
       </div>
     {/if}
@@ -118,7 +118,7 @@
       <!-- Setup Initial Admin Form -->
       <form onsubmit={handleSetupAdmin} class="space-y-4">
         <div class="p-3 bg-purple-500/10 border border-purple-500/20 rounded-xl mb-4 text-xs text-purple-300 flex items-start gap-2">
-          <Sparkles class="w-4 h-4 text-purple-400 shrink-0 mt-0.5" />
+          <Sparkles class="w-4 h-4 text-purple-400 shrink-0 mt-0.5" aria-hidden="true" />
           <span>
             Nenhum morador cadastrado ainda. Configure o usuário principal que gerenciará moradores e permissões da residência.
           </span>
@@ -130,12 +130,14 @@
             <input
               id="setup-name"
               type="text"
+              name="name"
+              autocomplete="name"
               bind:value={name}
               placeholder="Ex: Carlos Silva"
               required
-              class="w-full pl-9 pr-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 text-xs focus:ring-2 focus:ring-purple-500 focus:outline-none"
+              class="w-full pl-9 pr-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
             />
-            <User class="w-4 h-4 text-slate-500 absolute left-3 top-3 pointer-events-none" />
+            <User class="w-4 h-4 text-slate-500 absolute left-3 top-3 pointer-events-none" aria-hidden="true" />
           </div>
         </div>
 
@@ -145,12 +147,15 @@
             <input
               id="setup-email"
               type="email"
+              name="email"
+              autocomplete="email"
+              spellcheck="false"
               bind:value={email}
               placeholder="admin@residencia.com"
               required
-              class="w-full pl-9 pr-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 text-xs focus:ring-2 focus:ring-purple-500 focus:outline-none"
+              class="w-full pl-9 pr-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
             />
-            <Mail class="w-4 h-4 text-slate-500 absolute left-3 top-3 pointer-events-none" />
+            <Mail class="w-4 h-4 text-slate-500 absolute left-3 top-3 pointer-events-none" aria-hidden="true" />
           </div>
         </div>
 
@@ -160,13 +165,15 @@
             <input
               id="setup-password"
               type="password"
+              name="password"
+              autocomplete="new-password"
               bind:value={password}
               placeholder="••••••••"
               required
               minlength="6"
-              class="w-full pl-9 pr-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 text-xs focus:ring-2 focus:ring-purple-500 focus:outline-none"
+              class="w-full pl-9 pr-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
             />
-            <Lock class="w-4 h-4 text-slate-500 absolute left-3 top-3 pointer-events-none" />
+            <Lock class="w-4 h-4 text-slate-500 absolute left-3 top-3 pointer-events-none" aria-hidden="true" />
           </div>
         </div>
 
@@ -176,27 +183,29 @@
             <input
               id="setup-confirm-password"
               type="password"
+              name="confirm-password"
+              autocomplete="new-password"
               bind:value={confirmPassword}
               placeholder="••••••••"
               required
               minlength="6"
-              class="w-full pl-9 pr-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 text-xs focus:ring-2 focus:ring-purple-500 focus:outline-none"
+              class="w-full pl-9 pr-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
             />
-            <Lock class="w-4 h-4 text-slate-500 absolute left-3 top-3 pointer-events-none" />
+            <Lock class="w-4 h-4 text-slate-500 absolute left-3 top-3 pointer-events-none" aria-hidden="true" />
           </div>
         </div>
 
         <button
           type="submit"
           disabled={isSubmitting}
-          class="w-full py-3 mt-2 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-bold text-xs shadow-lg shadow-purple-600/30 transition cursor-pointer flex items-center justify-center gap-2"
+          class="w-full py-3 mt-2 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-bold text-xs shadow-lg shadow-purple-600/30 transition-colors cursor-pointer flex items-center justify-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400"
         >
           {#if isSubmitting}
-            <div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-            <span>Configurando...</span>
+            <div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" aria-hidden="true"></div>
+            <span>Configurando…</span>
           {:else}
             <span>Criar Administrador e Iniciar</span>
-            <ArrowRight class="w-4 h-4" />
+            <ArrowRight class="w-4 h-4" aria-hidden="true" />
           {/if}
         </button>
       </form>
@@ -209,12 +218,15 @@
             <input
               id="login-email"
               type="email"
+              name="email"
+              autocomplete="email"
+              spellcheck="false"
               bind:value={email}
               placeholder="seu.email@exemplo.com"
               required
-              class="w-full pl-9 pr-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 text-xs focus:ring-2 focus:ring-purple-500 focus:outline-none"
+              class="w-full pl-9 pr-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
             />
-            <Mail class="w-4 h-4 text-slate-500 absolute left-3 top-3 pointer-events-none" />
+            <Mail class="w-4 h-4 text-slate-500 absolute left-3 top-3 pointer-events-none" aria-hidden="true" />
           </div>
         </div>
 
@@ -226,26 +238,28 @@
             <input
               id="login-password"
               type="password"
+              name="password"
+              autocomplete="current-password"
               bind:value={password}
               placeholder="••••••••"
               required
-              class="w-full pl-9 pr-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 text-xs focus:ring-2 focus:ring-purple-500 focus:outline-none"
+              class="w-full pl-9 pr-3 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
             />
-            <Lock class="w-4 h-4 text-slate-500 absolute left-3 top-3 pointer-events-none" />
+            <Lock class="w-4 h-4 text-slate-500 absolute left-3 top-3 pointer-events-none" aria-hidden="true" />
           </div>
         </div>
 
         <button
           type="submit"
           disabled={isSubmitting}
-          class="w-full py-3 mt-2 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-bold text-xs shadow-lg shadow-purple-600/30 transition cursor-pointer flex items-center justify-center gap-2"
+          class="w-full py-3 mt-2 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-bold text-xs shadow-lg shadow-purple-600/30 transition-colors cursor-pointer flex items-center justify-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400"
         >
           {#if isSubmitting}
-            <div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-            <span>Entrando...</span>
+            <div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" aria-hidden="true"></div>
+            <span>Entrando…</span>
           {:else}
             <span>Acessar Painel</span>
-            <ArrowRight class="w-4 h-4" />
+            <ArrowRight class="w-4 h-4" aria-hidden="true" />
           {/if}
         </button>
       </form>
