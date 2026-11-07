@@ -63,7 +63,9 @@ func NewGeminiAdapter(ctx context.Context, apiKey string) (*GeminiAdapter, error
 
 // GenerateEmbedding gera vetor de 768 dimensões com gemini-embedding-001
 func (a *GeminiAdapter) GenerateEmbedding(ctx context.Context, text string) (pgvector.Vector, error) {
-	url := fmt.Sprintf("https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key=%s", a.apiKey)
+	// A chave de API é enviada via cabeçalho x-goog-api-key em vez de parâmetro na URL,
+	// evitando vazamento em logs de proxy, traces de rede e histórico
+	url := "https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent"
 
 	reqBody := map[string]interface{}{
 		"content": map[string]interface{}{
@@ -84,6 +86,7 @@ func (a *GeminiAdapter) GenerateEmbedding(ctx context.Context, text string) (pgv
 		return pgvector.Vector{}, err
 	}
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("x-goog-api-key", a.apiKey)
 
 	resp, err := a.httpClient.Do(req)
 	if err != nil {
@@ -91,7 +94,10 @@ func (a *GeminiAdapter) GenerateEmbedding(ctx context.Context, text string) (pgv
 	}
 	defer resp.Body.Close()
 
-	bodyBytes, _ := io.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return pgvector.Vector{}, fmt.Errorf("failed to read gemini embedding response: %w", err)
+	}
 	if resp.StatusCode != http.StatusOK {
 		return pgvector.Vector{}, fmt.Errorf("gemini embedding API returned status %d: %s", resp.StatusCode, string(bodyBytes))
 	}

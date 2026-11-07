@@ -67,9 +67,18 @@ func (s *MCPServer) registerTools() {
 			}
 			mimeType := request.GetString("mime_type", "image/jpeg")
 
+			// Limite de segurança: 10MB decodificado equivale a ~14-15MB em base64
+			const maxB64Len = 15 * 1024 * 1024
+			if len(b64) > maxB64Len {
+				return mcp.NewToolResultError("file_base64 excede o limite máximo permitido de 10MB"), nil
+			}
+
 			fileBytes, err := base64.StdEncoding.DecodeString(b64)
 			if err != nil {
 				return mcp.NewToolResultError(fmt.Sprintf("invalid base64: %v", err)), nil
+			}
+			if len(fileBytes) > 10*1024*1024 {
+				return mcp.NewToolResultError("arquivo decodificado excede o limite máximo permitido de 10MB"), nil
 			}
 
 			draft, err := s.purchaseService.ProcessReceiptFile(ctx, fileBytes, mimeType)

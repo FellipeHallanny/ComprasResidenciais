@@ -156,7 +156,7 @@ func (s *authService) GetAuthStatus(ctx context.Context) (bool, error) {
 	return count > 0, nil
 }
 
-func (s *authService) ValidateToken(tokenString string) (*domain.User, error) {
+func (s *authService) ValidateToken(ctx context.Context, tokenString string) (*domain.User, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &AuthClaims{}, func(t *jwt.Token) (interface{}, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("método de assinatura inesperado: %v", t.Header["alg"])
@@ -173,7 +173,7 @@ func (s *authService) ValidateToken(tokenString string) (*domain.User, error) {
 		return nil, errors.New("token inválido")
 	}
 
-	user, err := s.userRepo.GetByID(context.Background(), claims.UserID)
+	user, err := s.userRepo.GetByID(ctx, claims.UserID)
 	if err != nil {
 		return nil, errors.New("usuário associado ao token não encontrado")
 	}

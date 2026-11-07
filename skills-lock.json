@@ -7,6 +7,18 @@
       "skillPath": "skills/taste-skill/SKILL.md",
       "computedHash": "ac769e17340097d1d1e4fe8c8baf543324c81ce94d600283d70b6546ccd4d51d"
     },
+    "golang-performance": {
+      "source": "samber/cc-skills-golang",
+      "sourceType": "github",
+      "skillPath": "skills/golang-performance/SKILL.md",
+      "computedHash": "548c7e02341f3fdbcc6ceb35182607d00063961c4e29e15ce78b3548b39f6ebe"
+    },
+    "golang-security": {
+      "source": "samber/cc-skills-golang",
+      "sourceType": "github",
+      "skillPath": "skills/golang-security/SKILL.md",
+      "computedHash": "29b81afb21c8c63d4d2f8e1673d6bac9a423a283158e816c58b67240a0137ef6"
+    },
     "supabase": {
       "source": "supabase/agent-skills",
       "sourceType": "github",

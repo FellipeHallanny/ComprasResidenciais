@@ -139,5 +139,5 @@ type AuthService interface {
 	Login(ctx context.Context, email, password string) (*domain.LoginResponse, error)
 	SetupInitialAdmin(ctx context.Context, name, email, password string) (*domain.LoginResponse, error)
 	GetAuthStatus(ctx context.Context) (bool, error)
-	ValidateToken(tokenString string) (*domain.User, error)
+	ValidateToken(ctx context.Context, tokenString string) (*domain.User, error)
 }

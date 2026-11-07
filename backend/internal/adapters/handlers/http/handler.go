@@ -7,8 +7,10 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
+	"ComprasResidenciais/internal/adapters/repositories/postgres"
 	"ComprasResidenciais/internal/core/domain"
 	"ComprasResidenciais/internal/core/ports"
 
@@ -16,7 +18,11 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"golang.org/x/time/rate"
 )
+
+// MaxReceiptUploadSize define o tamanho máximo aceito para imagens/PDFs de cupons fiscais (10 MB)
+const MaxReceiptUploadSize = 10 << 20
 
 // --- DTOs para Swagger / OpenAPI ---
 
@@ -58,9 +64,14 @@ type SendShoppingListEmailRequest struct {
 	Content string `json:"content" binding:"required" example:"Itens recomendados:\n- Arroz Tipo 1\n- Feijão Carioca"`
 }
 
+// ResetDatabaseRequest payload de confirmação para reiniciar o banco de dados
+type ResetDatabaseRequest struct {
+	Confirm string `json:"confirm" binding:"required" example:"CONFIRMAR_RESET"`
+}
+
 // ErrorResponse modelo padrão para mensagens de erro
 type ErrorResponse struct {
-	Error string `json:"error" example:"mensagem detalhada do erro"`
+	Error string `json:"error" example:"mensagem descritiva do erro"`
 }
 
 // MessageResponse modelo padrão para mensagens de sucesso
@@ -98,30 +109,24 @@ func NewHTTPHandler(
 
 // RegisterRoutes registra as rotas da API RESTful no Gin
 func (h *HTTPHandler) RegisterRoutes(r *gin.Engine) {
-	// CORS Middleware para integração transparente com Frontend Svelte / Next.js
-	r.Use(func(c *gin.Context) {
-		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
-		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
-		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
-		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE, PATCH")
+	// Middlewares globais de segurança: cabeçalhos HTTP e CORS estrito
+	r.Use(SecurityHeadersMiddleware())
+	r.Use(CORSMiddleware())
 
-		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(204)
-			return
-		}
-		c.Next()
-	})
+	// Limitadores de taxa por IP para prevenção de força bruta e DoS
+	authLimiter := NewIPRateLimiter(rate.Every(12*time.Second), 5)  // ~5 requisições/minuto com burst 5
+	uploadLimiter := NewIPRateLimiter(rate.Every(6*time.Second), 5) // ~10 uploads/minuto com burst 5
 
 	api := r.Group("/api/v1")
 	{
 		// Health check (público)
 		api.GET("/health", h.health)
 
-		// Rotas Públicas de Autenticação
+		// Rotas Públicas de Autenticação com limitação de requisições
 		auth := api.Group("/auth")
 		{
-			auth.POST("/login", h.login)
-			auth.POST("/setup-admin", h.setupAdmin)
+			auth.POST("/login", RateLimitMiddleware(authLimiter, "login"), h.login)
+			auth.POST("/setup-admin", RateLimitMiddleware(authLimiter, "setup-admin"), h.setupAdmin)
 			auth.GET("/status", h.authStatus)
 		}
 
@@ -147,7 +152,7 @@ func (h *HTTPHandler) RegisterRoutes(r *gin.Engine) {
 			// Compras
 			protected.GET("/purchases", h.listPurchases)
 			protected.GET("/purchases/:id", h.getPurchase)
-			protected.POST("/purchases/upload", h.uploadReceipt)
+			protected.POST("/purchases/upload", RateLimitMiddleware(uploadLimiter, "upload"), h.uploadReceipt)
 			protected.POST("/purchases/sefaz", h.processFiscalKey)
 			protected.POST("/purchases/manual", h.createManualPurchase)
 			protected.PUT("/purchases/:id/confirm", h.confirmPurchase)
@@ -162,7 +167,7 @@ func (h *HTTPHandler) RegisterRoutes(r *gin.Engine) {
 			// Lista de Compras / Notificações
 			protected.POST("/shopping-list/send-email", h.sendShoppingListEmail)
 
-			// Admin / Manutenção (Apenas ADMIN)
+			// Admin / Manutenção (Apenas ADMIN com confirmação explícita)
 			protected.POST("/admin/reset-database", RequireAdminMiddleware(), h.resetDatabase)
 		}
 	}
@@ -237,7 +242,8 @@ func (h *HTTPHandler) setupAdmin(c *gin.Context) {
 func (h *HTTPHandler) authStatus(c *gin.Context) {
 	hasAdmin, err := h.authService.GetAuthStatus(c.Request.Context())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[AuthStatus Error] %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Falha ao verificar status de autenticação"})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"has_admin": hasAdmin})
@@ -271,7 +277,8 @@ func (h *HTTPHandler) getMe(c *gin.Context) {
 func (h *HTTPHandler) listUsers(c *gin.Context) {
 	users, err := h.userService.ListUsers(c.Request.Context())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[ListUsers Error] %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Falha ao listar moradores"})
 		return
 	}
 	c.JSON(http.StatusOK, users)
@@ -306,7 +313,8 @@ func (h *HTTPHandler) createUser(c *gin.Context) {
 
 	user, err := h.userService.CreateUser(c.Request.Context(), req.Name, req.Email, req.Phone, req.Password, req.Role)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[CreateUser Error] %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Falha ao cadastrar morador"})
 		return
 	}
 	c.JSON(http.StatusCreated, user)
@@ -364,7 +372,8 @@ func (h *HTTPHandler) updateUser(c *gin.Context) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "usuário não encontrado"})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[UpdateUser Error] %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Falha ao atualizar morador"})
 		return
 	}
 	c.JSON(http.StatusOK, user)
@@ -385,17 +394,18 @@ func (h *HTTPHandler) deleteUser(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id format"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "formato de id inválido"})
 		return
 	}
 
 	result, err := h.userService.DeleteUser(c.Request.Context(), id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) || err.Error() == "user not found" {
-			c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+			c.JSON(http.StatusNotFound, gin.H{"error": "usuário não encontrado"})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[DeleteUser Error] %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Falha ao excluir morador"})
 		return
 	}
 
@@ -413,7 +423,8 @@ func (h *HTTPHandler) deleteUser(c *gin.Context) {
 func (h *HTTPHandler) listStores(c *gin.Context) {
 	stores, err := h.storeRepo.ListAll(c.Request.Context())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[ListStores Error] %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Falha ao listar estabelecimentos"})
 		return
 	}
 	c.JSON(http.StatusOK, stores)
@@ -439,7 +450,8 @@ func (h *HTTPHandler) createStore(c *gin.Context) {
 
 	store, err := h.storeRepo.FindOrCreateByName(c.Request.Context(), req.Name, req.CNPJ)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[CreateStore Error] %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Falha ao cadastrar estabelecimento"})
 		return
 	}
 
@@ -468,7 +480,7 @@ func (h *HTTPHandler) updateStore(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid store id format"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "formato de id inválido"})
 		return
 	}
 
@@ -487,10 +499,11 @@ func (h *HTTPHandler) updateStore(c *gin.Context) {
 
 	if err := h.storeRepo.Update(c.Request.Context(), store); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "store not found"})
+			c.JSON(http.StatusNotFound, gin.H{"error": "estabelecimento não encontrado"})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[UpdateStore Error] %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Falha ao atualizar estabelecimento"})
 		return
 	}
 
@@ -516,44 +529,59 @@ func (h *HTTPHandler) deleteStore(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid store id format"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "formato de id inválido"})
 		return
 	}
 
 	if err := h.storeRepo.Delete(c.Request.Context(), id); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "store not found"})
+			c.JSON(http.StatusNotFound, gin.H{"error": "estabelecimento não encontrado"})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[DeleteStore Error] %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Falha ao excluir estabelecimento"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "store deleted successfully", "id": id})
+	c.JSON(http.StatusOK, gin.H{"message": "estabelecimento excluído com sucesso", "id": id})
 }
 
-// @Summary      Reiniciar banco de dados
-// @Description  Efetua truncate em cascata de todas as tabelas operacionais (Requer ADMIN)
+// @Summary      Reiniciar dados operacionais do banco de dados
+// @Description  Efetua truncate nas tabelas de compras, itens, catálogo e lojas preservando os moradores e acessos (Requer ADMIN e payload de confirmação)
 // @Tags         Admin
 // @Security     BearerAuth
+// @Accept       json
 // @Produce      json
-// @Success      200  {object}  MessageResponse
-// @Failure      403  {object}  ErrorResponse  "Requer ADMIN"
-// @Failure      500  {object}  ErrorResponse
+// @Param        request  body      ResetDatabaseRequest  true  "Confirmação da operação"
+// @Success      200      {object}  MessageResponse
+// @Failure      400      {object}  ErrorResponse  "Confirmação inválida"
+// @Failure      403      {object}  ErrorResponse  "Requer ADMIN"
+// @Failure      500      {object}  ErrorResponse
 // @Router       /admin/reset-database [post]
 func (h *HTTPHandler) resetDatabase(c *gin.Context) {
+	var req ResetDatabaseRequest
+	if err := c.ShouldBindJSON(&req); err != nil || req.Confirm != "CONFIRMAR_RESET" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Ação destrutiva requer confirmação explícita. Envie no corpo da requisição: {\"confirm\": \"CONFIRMAR_RESET\"}",
+		})
+		return
+	}
+
 	if h.pool == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "database pool not initialized"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Conexão com o banco de dados não inicializada"})
 		return
 	}
 
-	query := `TRUNCATE TABLE purchase_items, purchases, canonical_products, stores, household_users RESTART IDENTITY CASCADE;`
-	if _, err := h.pool.Exec(c.Request.Context(), query); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	if err := postgres.ResetDatabase(c.Request.Context(), h.pool); err != nil {
+		log.Printf("[ResetDatabase Error] %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Falha ao reiniciar dados operacionais"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"status": "ok", "message": "Todas as tabelas foram reiniciadas do zero com sucesso."})
+	c.JSON(http.StatusOK, gin.H{
+		"status":  "ok",
+		"message": "Tabelas operacionais reiniciadas com sucesso. Moradores e credenciais foram preservados para manter a integridade de acesso.",
+	})
 }
 
 // @Summary      Processar cupom fiscal com IA Gemini Vision
@@ -562,35 +590,70 @@ func (h *HTTPHandler) resetDatabase(c *gin.Context) {
 // @Security     BearerAuth
 // @Accept       multipart/form-data
 // @Produce      json
-// @Param        file  formData  file  true  "Arquivo de imagem ou PDF do cupom fiscal"
+// @Param        file  formData  file  true  "Arquivo de imagem ou PDF do cupom fiscal (máximo 10MB)"
 // @Success      201   {object}  domain.Purchase
 // @Failure      400   {object}  ErrorResponse
+// @Failure      413   {object}  ErrorResponse  "Arquivo excede o limite máximo permitido de 10MB"
 // @Failure      500   {object}  ErrorResponse
 // @Router       /purchases/upload [post]
 func (h *HTTPHandler) uploadReceipt(c *gin.Context) {
 	fileHeader, err := c.FormFile("file")
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "file field is required"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "campo 'file' é obrigatório"})
+		return
+	}
+
+	// 1. Validação de tamanho pelo header do formulário multipart
+	if fileHeader.Size > MaxReceiptUploadSize {
+		c.JSON(http.StatusRequestEntityTooLarge, gin.H{
+			"error": fmt.Sprintf("o arquivo excede o limite máximo permitido de %d MB", MaxReceiptUploadSize/(1024*1024)),
+		})
+		return
+	}
+
+	// 2. Validação antecipada do Content-Type
+	mimeType := strings.ToLower(strings.TrimSpace(fileHeader.Header.Get("Content-Type")))
+	allowedMimes := map[string]bool{
+		"image/jpeg":      true,
+		"image/png":       true,
+		"image/webp":      true,
+		"image/heic":      true,
+		"image/heif":      true,
+		"application/pdf": true,
+	}
+	if mimeType != "" && !allowedMimes[mimeType] {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": fmt.Sprintf("tipo de arquivo não suportado (%s). Formatos permitidos: JPG, PNG, WebP, HEIC, PDF", mimeType),
+		})
 		return
 	}
 
 	file, err := fileHeader.Open()
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "cannot open uploaded file"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "não foi possível abrir o arquivo enviado"})
 		return
 	}
 	defer file.Close()
 
-	fileBytes, err := io.ReadAll(file)
+	// 3. io.LimitReader garante defesa em profundidade contra headers de tamanho adulterados
+	limitedReader := io.LimitReader(file, MaxReceiptUploadSize+1)
+	fileBytes, err := io.ReadAll(limitedReader)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "cannot read file bytes"})
+		log.Printf("[UploadReceipt Read Error] %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Falha ao ler os dados do arquivo"})
+		return
+	}
+	if int64(len(fileBytes)) > MaxReceiptUploadSize {
+		c.JSON(http.StatusRequestEntityTooLarge, gin.H{
+			"error": fmt.Sprintf("o arquivo excede o limite máximo permitido de %d MB", MaxReceiptUploadSize/(1024*1024)),
+		})
 		return
 	}
 
-	mimeType := fileHeader.Header.Get("Content-Type")
 	draft, err := h.purchaseService.ProcessReceiptFile(c.Request.Context(), fileBytes, mimeType)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[UploadReceipt Processing Error] %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Falha ao processar o cupom fiscal através do serviço de inteligência artificial"})
 		return
 	}
 
@@ -622,7 +685,8 @@ func (h *HTTPHandler) processFiscalKey(c *gin.Context) {
 
 	draft, err := h.purchaseService.ProcessFiscalKey(c.Request.Context(), req.FiscalKey)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[ProcessFiscalKey Error] %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Falha ao consultar nota fiscal na SEFAZ"})
 		return
 	}
 
@@ -644,7 +708,7 @@ func (h *HTTPHandler) confirmPurchase(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid purchase id"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "formato de id de compra inválido"})
 		return
 	}
 
@@ -704,7 +768,7 @@ func (h *HTTPHandler) getPurchase(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid purchase id"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "formato de id de compra inválido"})
 		return
 	}
 
@@ -736,7 +800,8 @@ func (h *HTTPHandler) listPurchases(c *gin.Context) {
 
 	list, err := h.purchaseService.ListPurchases(c.Request.Context(), limit, offset)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[ListPurchases Error] %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Falha ao listar histórico de compras"})
 		return
 	}
 
@@ -756,7 +821,8 @@ func (h *HTTPHandler) searchProducts(c *gin.Context) {
 	query := c.Query("q")
 	products, err := h.analyticsService.SearchProducts(c.Request.Context(), query)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[SearchProducts Error] %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Falha na busca semântica de produtos"})
 		return
 	}
 	c.JSON(http.StatusOK, products)
@@ -773,7 +839,8 @@ func (h *HTTPHandler) searchProducts(c *gin.Context) {
 func (h *HTTPHandler) getCatalogWithPrices(c *gin.Context) {
 	catalog, err := h.analyticsService.GetCatalogWithPrices(c.Request.Context())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[CatalogPrices Error] %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Falha ao consultar catálogo com preços"})
 		return
 	}
 	c.JSON(http.StatusOK, catalog)
@@ -793,13 +860,14 @@ func (h *HTTPHandler) getPriceComparison(c *gin.Context) {
 	prodIdStr := c.Param("productId")
 	id, err := uuid.Parse(prodIdStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid canonical product id"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "formato de id de produto inválido"})
 		return
 	}
 
 	view, err := h.analyticsService.GetPriceComparison(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[PriceComparison Error] %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Falha ao obter comparativo de preços"})
 		return
 	}
 
@@ -820,13 +888,14 @@ func (h *HTTPHandler) getMonthlyOscillation(c *gin.Context) {
 	prodIdStr := c.Param("productId")
 	id, err := uuid.Parse(prodIdStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid canonical product id"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "formato de id de produto inválido"})
 		return
 	}
 
 	oscillation, err := h.analyticsService.GetMonthlyOscillation(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[MonthlyOscillation Error] %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Falha ao calcular oscilação mensal de preços"})
 		return
 	}
 
@@ -844,7 +913,8 @@ func (h *HTTPHandler) getMonthlyOscillation(c *gin.Context) {
 func (h *HTTPHandler) getGlobalSummary(c *gin.Context) {
 	summary, err := h.analyticsService.GetGlobalSummary(c.Request.Context(), time.Now())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("[GlobalSummary Error] %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Falha ao gerar resumo analítico"})
 		return
 	}
 

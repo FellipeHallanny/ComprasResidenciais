@@ -1,9 +1,12 @@
 package config
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
@@ -46,14 +49,25 @@ func LoadConfig() *Config {
 		port = "8080"
 	}
 
-	dbURL := os.Getenv("DATABASE_URL")
+	dbURL := strings.TrimSpace(os.Getenv("DATABASE_URL"))
 	if dbURL == "" {
-		dbURL = "postgres://postgres:postgrespassword@localhost:5432/compras_residenciais?sslmode=disable"
+		log.Println("Aviso: DATABASE_URL não definida nas variáveis de ambiente.")
 	}
 
-	jwtSecret := os.Getenv("JWT_SECRET")
+	jwtSecret := strings.TrimSpace(os.Getenv("JWT_SECRET"))
 	if jwtSecret == "" {
-		jwtSecret = "compras-residenciais-jwt-secret-key-super-secure-2026"
+		if os.Getenv("GIN_MODE") == "release" {
+			log.Fatal("FATAL: Variável de ambiente JWT_SECRET é obrigatória em ambiente de produção.")
+		}
+		// Gera segredo aleatório efêmero de 256 bits para desenvolvimento seguro
+		randomBytes := make([]byte, 32)
+		if _, err := rand.Read(randomBytes); err != nil {
+			log.Fatalf("Falha crítica ao gerar segredo seguro aleatório: %v", err)
+		}
+		jwtSecret = hex.EncodeToString(randomBytes)
+		log.Println("Aviso de segurança: JWT_SECRET não configurado. Um segredo criptográfico aleatório foi gerado temporariamente para esta sessão.")
+	} else if len(jwtSecret) < 32 {
+		log.Println("Aviso de segurança: JWT_SECRET possui menos de 32 caracteres. Recomenda-se uma chave com pelo menos 32 caracteres (256 bits).")
 	}
 
 	return &Config{

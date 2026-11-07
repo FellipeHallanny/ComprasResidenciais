@@ -122,6 +122,7 @@ func main() {
 	// 5. Adaptador HTTP Gin (Driving Adapter)
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.Default()
+	router.MaxMultipartMemory = 12 << 20 // 12 MB limite de buffer para uploads multipart
 
 	// Documentação Interativa Swagger / OpenAPI
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))

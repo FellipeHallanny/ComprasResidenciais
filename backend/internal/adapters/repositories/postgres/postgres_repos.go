@@ -114,9 +114,9 @@ func RunAutoMigrations(ctx context.Context, pool *pgxpool.Pool) error {
 	return nil
 }
 
-// ResetDatabase limpa todas as tabelas reiniciando dados para um estado limpo
+// ResetDatabase limpa tabelas operacionais reiniciando dados para um estado limpo, preservando moradores e administradores
 func ResetDatabase(ctx context.Context, pool *pgxpool.Pool) error {
-	query := `TRUNCATE TABLE purchase_items, purchases, canonical_products, stores, household_users RESTART IDENTITY CASCADE;`
+	query := `TRUNCATE TABLE purchase_items, purchases, canonical_products, stores RESTART IDENTITY CASCADE;`
 	_, err := pool.Exec(ctx, query)
 	return err
 }
