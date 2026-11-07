@@ -19,7 +19,9 @@ import (
 	"ComprasResidenciais/internal/core/services"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	pgxvec "github.com/pgvector/pgvector-go/pgx"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 )
@@ -47,7 +49,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// 1. Conexão com o banco de dados PostgreSQL
+	// 1. Conexão otimizada com o pool do PostgreSQL
 	poolConfig, err := pgxpool.ParseConfig(cfg.DatabaseURL)
 	if err != nil {
 		log.Fatalf("Unable to parse DATABASE_URL: %v", err)
@@ -55,6 +57,14 @@ func main() {
 	poolConfig.MaxConns = 25
 	poolConfig.MinConns = 5
 	poolConfig.MaxConnLifetime = 1 * time.Hour
+	poolConfig.MaxConnIdleTime = 15 * time.Minute  // Recicla conexões ociosas acima de MinConns
+	poolConfig.HealthCheckPeriod = 1 * time.Minute // Detecta e remove conexões zumbis
+	poolConfig.ConnConfig.ConnectTimeout = 5 * time.Second
+
+	// Garante que 100% das conexões criadas no pool registrem os codecs do pgvector
+	poolConfig.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
+		return pgxvec.RegisterTypes(ctx, conn)
+	}
 
 	pool, err := pgxpool.NewWithConfig(ctx, poolConfig)
 	if err != nil {
@@ -66,10 +76,6 @@ func main() {
 		log.Printf("Warning: Database ping failed: %v (continuing startup)", err)
 	} else {
 		log.Println("Database connection established successfully.")
-		// Registra tipos do pgvector no pgxpool
-		if err := pgRepo.RegisterPgvectorType(ctx, pool); err != nil {
-			log.Printf("Warning: Failed to register pgvector type: %v", err)
-		}
 		// Executa migrações automáticas incrementais / esquema inicial
 		if err := pgRepo.RunAutoMigrations(ctx, pool); err != nil {
 			log.Printf("Warning: Auto migrations failed: %v", err)
@@ -133,21 +139,24 @@ func main() {
 	handler := httpHandler.NewHTTPHandler(purchaseService, analyticsService, userService, authService, storeRepository, pool)
 	handler.RegisterRoutes(router)
 
+	// Configuração robusta de timeouts do servidor HTTP
 	srv := &http.Server{
-		Addr:         ":" + cfg.Port,
-		Handler:      router,
-		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 60 * time.Second,
+		Addr:              ":" + cfg.Port,
+		Handler:           router,
+		ReadHeaderTimeout: 5 * time.Second,   // Proteção ativa contra Slowloris
+		ReadTimeout:       30 * time.Second,  // Tempo de leitura do corpo
+		WriteTimeout:      60 * time.Second,  // Tempo de resposta (acomoda visão do Gemini)
+		IdleTimeout:       120 * time.Second, // Mantém conexões TCP keep-alive saudáveis
 	}
 
-	// Graceful shutdown em background
+	// Graceful shutdown em background com janela segura
 	go func() {
 		quit := make(chan os.Signal, 1)
 		signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 		sig := <-quit
 		log.Printf("Encerrando servidor com segurança (sinal: %v)...\n", sig)
 
-		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer shutdownCancel()
 
 		if err := srv.Shutdown(shutdownCtx); err != nil {

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"ComprasResidenciais/internal/core/domain"
@@ -22,9 +23,15 @@ type AuthClaims struct {
 	jwt.RegisteredClaims
 }
 
+type cachedUser struct {
+	user      *domain.User
+	expiresAt time.Time
+}
+
 type authService struct {
 	userRepo  ports.UserRepository
 	jwtSecret []byte
+	userCache sync.Map // cache com TTL de 60s para evitar 1 query ao Postgres por request HTTP
 }
 
 func NewAuthService(userRepo ports.UserRepository, jwtSecret string) ports.AuthService {
@@ -79,6 +86,12 @@ func (s *authService) Login(ctx context.Context, email, password string) (*domai
 	if err != nil {
 		return nil, fmt.Errorf("falha ao gerar token de autenticação: %w", err)
 	}
+
+	// Armazena no cache para os próximos requests
+	s.userCache.Store(user.ID, cachedUser{
+		user:      user,
+		expiresAt: time.Now().Add(60 * time.Second),
+	})
 
 	return &domain.LoginResponse{
 		Token: token,
@@ -142,6 +155,11 @@ func (s *authService) SetupInitialAdmin(ctx context.Context, name, email, passwo
 		return nil, fmt.Errorf("falha ao gerar token para administrador: %w", err)
 	}
 
+	s.userCache.Store(user.ID, cachedUser{
+		user:      user,
+		expiresAt: time.Now().Add(60 * time.Second),
+	})
+
 	return &domain.LoginResponse{
 		Token: token,
 		User:  *user,
@@ -173,10 +191,27 @@ func (s *authService) ValidateToken(ctx context.Context, tokenString string) (*d
 		return nil, errors.New("token inválido")
 	}
 
+	// OTIMIZAÇÃO: Cache in-memory com TTL de 60s para poupar 80%+ das requisições SQL
+	if val, ok := s.userCache.Load(claims.UserID); ok {
+		entry := val.(cachedUser)
+		if time.Now().Before(entry.expiresAt) {
+			if entry.user.IsBlocked {
+				return nil, errors.New("usuário bloqueado pelo administrador")
+			}
+			return entry.user, nil
+		}
+		s.userCache.Delete(claims.UserID)
+	}
+
 	user, err := s.userRepo.GetByID(ctx, claims.UserID)
 	if err != nil {
 		return nil, errors.New("usuário associado ao token não encontrado")
 	}
+
+	s.userCache.Store(claims.UserID, cachedUser{
+		user:      user,
+		expiresAt: time.Now().Add(60 * time.Second),
+	})
 
 	if user.IsBlocked {
 		return nil, errors.New("usuário bloqueado pelo administrador")

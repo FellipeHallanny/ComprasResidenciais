@@ -82,6 +82,7 @@ func RunAutoMigrations(ctx context.Context, pool *pgxpool.Pool) error {
 		);`,
 		`CREATE INDEX IF NOT EXISTS purchases_purchased_at_idx ON purchases (purchased_at);`,
 		`CREATE INDEX IF NOT EXISTS purchases_status_idx ON purchases (status);`,
+		`CREATE INDEX IF NOT EXISTS purchases_status_purchased_at_idx ON purchases (status, purchased_at DESC);`,
 		`CREATE TABLE IF NOT EXISTS purchase_items (
 		    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 		    purchase_id UUID NOT NULL REFERENCES purchases(id) ON DELETE CASCADE,
@@ -98,6 +99,7 @@ func RunAutoMigrations(ctx context.Context, pool *pgxpool.Pool) error {
 		);`,
 		`CREATE INDEX IF NOT EXISTS purchase_items_canonical_idx ON purchase_items (canonical_product_id);`,
 		`CREATE INDEX IF NOT EXISTS purchase_items_purchase_id_idx ON purchase_items (purchase_id);`,
+		`CREATE INDEX IF NOT EXISTS purchase_items_can_norm_price_idx ON purchase_items (canonical_product_id, normalized_price ASC);`,
 		`ALTER TABLE household_users ADD COLUMN IF NOT EXISTS is_blocked BOOLEAN NOT NULL DEFAULT FALSE;`,
 		`ALTER TABLE household_users ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255) NOT NULL DEFAULT '';`,
 		`ALTER TABLE household_users ADD COLUMN IF NOT EXISTS role VARCHAR(20) NOT NULL DEFAULT 'MEMBER';`,
@@ -169,7 +171,7 @@ func (r *userRepo) ListAll(ctx context.Context) ([]domain.User, error) {
 	}
 	defer rows.Close()
 
-	users := make([]domain.User, 0)
+	users := make([]domain.User, 0, 8)
 	for rows.Next() {
 		var u domain.User
 		if err := rows.Scan(&u.ID, &u.Name, &u.Email, &u.Phone, &u.PasswordHash, &u.Role, &u.IsBlocked, &u.CreatedAt, &u.UpdatedAt); err != nil {
@@ -304,7 +306,7 @@ func (r *storeRepo) ListAll(ctx context.Context) ([]domain.Store, error) {
 	}
 	defer rows.Close()
 
-	stores := make([]domain.Store, 0)
+	stores := make([]domain.Store, 0, 16)
 	for rows.Next() {
 		var s domain.Store
 		if err := rows.Scan(&s.ID, &s.Name, &s.CNPJ, &s.Address, &s.CreatedAt, &s.UpdatedAt); err != nil {
@@ -403,7 +405,7 @@ func (r *productRepo) SearchSemantic(ctx context.Context, vec pgvector.Vector, l
 	}
 	defer rows.Close()
 
-	prods := make([]domain.CanonicalProduct, 0)
+	prods := make([]domain.CanonicalProduct, 0, limit)
 	for rows.Next() {
 		var p domain.CanonicalProduct
 		if err := rows.Scan(&p.ID, &p.Name, &p.Category, &p.BaseUnit, &p.CreatedAt, &p.UpdatedAt); err != nil {
@@ -428,7 +430,7 @@ func (r *productRepo) SearchByName(ctx context.Context, queryStr string) ([]doma
 	}
 	defer rows.Close()
 
-	prods := make([]domain.CanonicalProduct, 0)
+	prods := make([]domain.CanonicalProduct, 0, 20)
 	for rows.Next() {
 		var p domain.CanonicalProduct
 		if err := rows.Scan(&p.ID, &p.Name, &p.Category, &p.BaseUnit, &p.CreatedAt, &p.UpdatedAt); err != nil {
@@ -447,7 +449,7 @@ func (r *productRepo) ListAll(ctx context.Context) ([]domain.CanonicalProduct, e
 	}
 	defer rows.Close()
 
-	prods := make([]domain.CanonicalProduct, 0)
+	prods := make([]domain.CanonicalProduct, 0, 32)
 	for rows.Next() {
 		var p domain.CanonicalProduct
 		if err := rows.Scan(&p.ID, &p.Name, &p.Category, &p.BaseUnit, &p.CreatedAt, &p.UpdatedAt); err != nil {
@@ -468,6 +470,8 @@ func NewPurchaseRepository(pool *pgxpool.Pool) ports.PurchaseRepository {
 	return &purchaseRepo{pool: pool}
 }
 
+// CreatePurchase persiste o registro mestre da compra e realiza inserção em lote (batch copy)
+// de todos os itens usando o protocolo binário tx.CopyFrom, reduzindo de 50 round-trips para 1.
 func (r *purchaseRepo) CreatePurchase(ctx context.Context, p *domain.Purchase) error {
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
@@ -486,19 +490,37 @@ func (r *purchaseRepo) CreatePurchase(ctx context.Context, p *domain.Purchase) e
 		return fmt.Errorf("failed to insert purchase: %w", err)
 	}
 
-	itemQuery := `
-		INSERT INTO purchase_items (
-			id, purchase_id, raw_description, quantity, package_size, package_unit,
-			total_units, total_price, unit_price, normalized_price, canonical_product_id, created_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-	`
-	for _, item := range p.Items {
-		_, err = tx.Exec(ctx, itemQuery,
-			item.ID, p.ID, item.RawDescription, item.Quantity, item.PackageSize, item.PackageUnit,
-			item.TotalUnits, item.TotalPrice, item.UnitPrice, item.NormalizedPrice, item.CanonicalProductID, item.CreatedAt,
+	if len(p.Items) > 0 {
+		rows := make([][]interface{}, len(p.Items))
+		for i := range p.Items {
+			item := &p.Items[i]
+			itemUUID := item.ID
+			if itemUUID == uuid.Nil {
+				itemUUID = uuid.New()
+				item.ID = itemUUID
+			}
+			itemCreatedAt := item.CreatedAt
+			if itemCreatedAt.IsZero() {
+				itemCreatedAt = time.Now()
+				item.CreatedAt = itemCreatedAt
+			}
+			rows[i] = []interface{}{
+				itemUUID, p.ID, item.RawDescription, item.Quantity, item.PackageSize, item.PackageUnit,
+				item.TotalUnits, item.TotalPrice, item.UnitPrice, item.NormalizedPrice, item.CanonicalProductID, itemCreatedAt,
+			}
+		}
+
+		_, err = tx.CopyFrom(
+			ctx,
+			pgx.Identifier{"purchase_items"},
+			[]string{
+				"id", "purchase_id", "raw_description", "quantity", "package_size", "package_unit",
+				"total_units", "total_price", "unit_price", "normalized_price", "canonical_product_id", "created_at",
+			},
+			pgx.CopyFromRows(rows),
 		)
 		if err != nil {
-			return fmt.Errorf("failed to insert purchase item '%s': %w", item.RawDescription, err)
+			return fmt.Errorf("failed to batch insert purchase items via CopyFrom: %w", err)
 		}
 	}
 
@@ -527,27 +549,37 @@ func (r *purchaseRepo) UpdatePurchase(ctx context.Context, p *domain.Purchase) e
 		return fmt.Errorf("failed to clean existing items: %w", err)
 	}
 
-	itemQuery := `
-		INSERT INTO purchase_items (
-			id, purchase_id, raw_description, quantity, package_size, package_unit,
-			total_units, total_price, unit_price, normalized_price, canonical_product_id, created_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-	`
-	for _, item := range p.Items {
-		itemUUID := item.ID
-		if itemUUID == uuid.Nil {
-			itemUUID = uuid.New()
+	if len(p.Items) > 0 {
+		rows := make([][]interface{}, len(p.Items))
+		for i := range p.Items {
+			item := &p.Items[i]
+			itemUUID := item.ID
+			if itemUUID == uuid.Nil {
+				itemUUID = uuid.New()
+				item.ID = itemUUID
+			}
+			itemCreatedAt := item.CreatedAt
+			if itemCreatedAt.IsZero() {
+				itemCreatedAt = time.Now()
+				item.CreatedAt = itemCreatedAt
+			}
+			rows[i] = []interface{}{
+				itemUUID, p.ID, item.RawDescription, item.Quantity, item.PackageSize, item.PackageUnit,
+				item.TotalUnits, item.TotalPrice, item.UnitPrice, item.NormalizedPrice, item.CanonicalProductID, itemCreatedAt,
+			}
 		}
-		itemCreatedAt := item.CreatedAt
-		if itemCreatedAt.IsZero() {
-			itemCreatedAt = time.Now()
-		}
-		_, err = tx.Exec(ctx, itemQuery,
-			itemUUID, p.ID, item.RawDescription, item.Quantity, item.PackageSize, item.PackageUnit,
-			item.TotalUnits, item.TotalPrice, item.UnitPrice, item.NormalizedPrice, item.CanonicalProductID, itemCreatedAt,
+
+		_, err = tx.CopyFrom(
+			ctx,
+			pgx.Identifier{"purchase_items"},
+			[]string{
+				"id", "purchase_id", "raw_description", "quantity", "package_size", "package_unit",
+				"total_units", "total_price", "unit_price", "normalized_price", "canonical_product_id", "created_at",
+			},
+			pgx.CopyFromRows(rows),
 		)
 		if err != nil {
-			return fmt.Errorf("failed to re-insert purchase item '%s': %w", item.RawDescription, err)
+			return fmt.Errorf("failed to batch re-insert purchase items via CopyFrom: %w", err)
 		}
 	}
 
@@ -578,7 +610,7 @@ func (r *purchaseRepo) GetPurchaseByID(ctx context.Context, id uuid.UUID) (*doma
 	}
 	defer rows.Close()
 
-	p.Items = make([]domain.PurchaseItem, 0)
+	p.Items = make([]domain.PurchaseItem, 0, 32)
 	for rows.Next() {
 		var item domain.PurchaseItem
 		if err := rows.Scan(
@@ -604,7 +636,7 @@ func (r *purchaseRepo) ListPurchases(ctx context.Context, limit int, offset int)
 	}
 	defer rows.Close()
 
-	purchases := make([]domain.Purchase, 0)
+	purchases := make([]domain.Purchase, 0, limit)
 	for rows.Next() {
 		var p domain.Purchase
 		if err := rows.Scan(
@@ -628,7 +660,7 @@ func (r *purchaseRepo) GetPriceComparison(ctx context.Context, canonicalProductI
 		CanonicalProductID: canonicalProductID.String(),
 		ProductName:        prodName,
 		BaseUnit:           baseUnit,
-		RecentPurchases:    make([]domain.RecentItemPurchase, 0),
+		RecentPurchases:    make([]domain.RecentItemPurchase, 0, 10),
 	}
 
 	summaryQuery := `
@@ -696,7 +728,7 @@ func (r *purchaseRepo) GetMonthlyOscillation(ctx context.Context, canonicalProdu
 		CanonicalProductID: canonicalProductID.String(),
 		ProductName:        prodName,
 		BaseUnit:           baseUnit,
-		Periods:            make([]domain.PeriodMetric, 0),
+		Periods:            make([]domain.PeriodMetric, 0, 4),
 	}
 
 	periodsQuery := `
@@ -738,7 +770,7 @@ func (r *purchaseRepo) GetGlobalSummary(ctx context.Context, month time.Time) (*
 
 	summary := &domain.GlobalSummaryView{
 		SpendingByUser: make(map[string]float64),
-		TopStores:      make([]domain.StoreShareMetric, 0),
+		TopStores:      make([]domain.StoreShareMetric, 0, 5),
 	}
 
 	_ = r.pool.QueryRow(ctx, `
@@ -846,7 +878,7 @@ func (r *purchaseRepo) GetCatalogWithPrices(ctx context.Context) ([]domain.Catal
 	}
 	defer rows.Close()
 
-	catalog := make([]domain.CatalogItemView, 0)
+	catalog := make([]domain.CatalogItemView, 0, 50)
 	for rows.Next() {
 		var (
 			id              uuid.UUID

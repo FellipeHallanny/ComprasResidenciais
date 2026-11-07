@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -22,6 +23,19 @@ type GeminiAdapter struct {
 	client     *genai.Client
 	apiKey     string
 	httpClient *http.Client
+}
+
+type geminiEmbedPart struct {
+	Text string `json:"text"`
+}
+
+type geminiEmbedContent struct {
+	Parts []geminiEmbedPart `json:"parts"`
+}
+
+type geminiEmbedRequest struct {
+	Content              geminiEmbedContent `json:"content"`
+	OutputDimensionality int                `json:"outputDimensionality"`
 }
 
 func normalizeReceiptMIME(mimeType string) (string, error) {
@@ -44,6 +58,8 @@ func normalizeReceiptMIME(mimeType string) (string, error) {
 }
 
 // NewGeminiAdapter inicializa o cliente Gemini usando a chave de API fornecida
+// OTIMIZAÇÃO: Transporte HTTP customizado com MaxIdleConnsPerHost: 25 e keep-alive para
+// eliminar TLS Handshake repetidos nas chamadas à API do Gemini.
 func NewGeminiAdapter(ctx context.Context, apiKey string) (*GeminiAdapter, error) {
 	if apiKey == "" {
 		return nil, errors.New("GEMINI_API_KEY is required for Gemini adapter")
@@ -54,26 +70,42 @@ func NewGeminiAdapter(ctx context.Context, apiKey string) (*GeminiAdapter, error
 		return nil, fmt.Errorf("failed to create Gemini client: %w", err)
 	}
 
+	customTransport := &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		DialContext: (&net.Dialer{
+			Timeout:   5 * time.Second,
+			KeepAlive: 30 * time.Second,
+		}).DialContext,
+		MaxIdleConns:          100,
+		MaxIdleConnsPerHost:   25,
+		MaxConnsPerHost:       50,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   5 * time.Second,
+		ResponseHeaderTimeout: 15 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+	}
+
 	return &GeminiAdapter{
-		client:     client,
-		apiKey:     apiKey,
-		httpClient: &http.Client{Timeout: 30 * time.Second},
+		client: client,
+		apiKey: apiKey,
+		httpClient: &http.Client{
+			Timeout:   30 * time.Second,
+			Transport: customTransport,
+		},
 	}, nil
 }
 
 // GenerateEmbedding gera vetor de 768 dimensões com gemini-embedding-001
+// OTIMIZAÇÃO: Payload com tipagem estática sem boxing em interface{} e streaming com
+// json.NewDecoder para zero buffers intermediários na memória.
 func (a *GeminiAdapter) GenerateEmbedding(ctx context.Context, text string) (pgvector.Vector, error) {
-	// A chave de API é enviada via cabeçalho x-goog-api-key em vez de parâmetro na URL,
-	// evitando vazamento em logs de proxy, traces de rede e histórico
 	url := "https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent"
 
-	reqBody := map[string]interface{}{
-		"content": map[string]interface{}{
-			"parts": []map[string]string{
-				{"text": text},
-			},
+	reqBody := geminiEmbedRequest{
+		Content: geminiEmbedContent{
+			Parts: []geminiEmbedPart{{Text: text}},
 		},
-		"outputDimensionality": 768,
+		OutputDimensionality: 768,
 	}
 
 	payload, err := json.Marshal(reqBody)
@@ -92,14 +124,15 @@ func (a *GeminiAdapter) GenerateEmbedding(ctx context.Context, text string) (pgv
 	if err != nil {
 		return pgvector.Vector{}, fmt.Errorf("failed to call gemini embedding API: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		// Drena o restante do body para permitir reuso de conexão TCP no pool Keep-Alive
+		_, _ = io.Copy(io.Discard, resp.Body)
+		_ = resp.Body.Close()
+	}()
 
-	bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return pgvector.Vector{}, fmt.Errorf("failed to read gemini embedding response: %w", err)
-	}
 	if resp.StatusCode != http.StatusOK {
-		return pgvector.Vector{}, fmt.Errorf("gemini embedding API returned status %d: %s", resp.StatusCode, string(bodyBytes))
+		errBytes, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
+		return pgvector.Vector{}, fmt.Errorf("gemini embedding API returned status %d: %s", resp.StatusCode, string(errBytes))
 	}
 
 	var res struct {
@@ -108,8 +141,8 @@ func (a *GeminiAdapter) GenerateEmbedding(ctx context.Context, text string) (pgv
 		} `json:"embedding"`
 	}
 
-	if err := json.Unmarshal(bodyBytes, &res); err != nil {
-		return pgvector.Vector{}, fmt.Errorf("failed to unmarshal embedding response: %w", err)
+	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
+		return pgvector.Vector{}, fmt.Errorf("failed to decode gemini embedding response: %w", err)
 	}
 
 	if len(res.Embedding.Values) == 0 {
@@ -121,11 +154,8 @@ func (a *GeminiAdapter) GenerateEmbedding(ctx context.Context, text string) (pgv
 
 // ParseReceipt envia a imagem ou PDF do cupom fiscal para o Gemini extrair os dados estruturados
 func (a *GeminiAdapter) ParseReceipt(ctx context.Context, fileBytes []byte, mimeType string) (*ports.ParsedReceipt, error) {
-	// 1. Atualizado para o modelo suportado
 	model := a.client.GenerativeModel("gemini-3.8-flash")
 	model.SetTemperature(0.1)
-
-	// 2. Força a API a responder diretamente em JSON válido
 	model.ResponseMIMEType = "application/json"
 
 	prompt := `
@@ -175,14 +205,16 @@ Regras:
 		return nil, errors.New("no response generated from gemini")
 	}
 
-	var rawResponse string
+	// OTIMIZAÇÃO: strings.Builder com preallocation para evitar N alocações de concatenação de strings
+	var sb strings.Builder
+	sb.Grow(4096)
 	for _, part := range resp.Candidates[0].Content.Parts {
 		if txt, ok := part.(genai.Text); ok {
-			rawResponse += string(txt)
+			sb.WriteString(string(txt))
 		}
 	}
 
-	cleaned := strings.TrimSpace(rawResponse)
+	cleaned := strings.TrimSpace(sb.String())
 	cleaned = strings.TrimPrefix(cleaned, "```json")
 	cleaned = strings.TrimPrefix(cleaned, "```")
 	cleaned = strings.TrimSuffix(cleaned, "```")

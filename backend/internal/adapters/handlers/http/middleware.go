@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"ComprasResidenciais/internal/core/domain"
@@ -17,7 +18,9 @@ import (
 
 const CurrentUserContextKey = "current_user"
 
-// AuthMiddleware valida o token JWT contido no header Authorization: Bearer <token>
+// AuthMiddleware valida o token JWT contido no header Authorization: Bearer <token>.
+// OTIMIZAÇÃO: Utiliza strings.Cut em vez de strings.SplitN para eliminar alocação de slice no heap
+// a cada requisição autenticada.
 func AuthMiddleware(authService ports.AuthService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
@@ -28,15 +31,15 @@ func AuthMiddleware(authService ports.AuthService) gin.HandlerFunc {
 			return
 		}
 
-		parts := strings.SplitN(authHeader, " ", 2)
-		if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
+		prefix, tokenStr, found := strings.Cut(authHeader, " ")
+		if !found || !strings.EqualFold(prefix, "Bearer") {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 				"error": "Formato de autorização inválido. Utilize 'Bearer <token>'",
 			})
 			return
 		}
 
-		tokenStr := strings.TrimSpace(parts[1])
+		tokenStr = strings.TrimSpace(tokenStr)
 		user, err := authService.ValidateToken(c.Request.Context(), tokenStr)
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
@@ -104,7 +107,9 @@ func SecurityHeadersMiddleware() gin.HandlerFunc {
 	}
 }
 
-// CORSMiddleware implementa política de CORS estrita sem wildcards conflitantes
+// CORSMiddleware implementa política de CORS estrita.
+// OTIMIZAÇÃO: As origens permitidas são indexadas em map[string]struct{} na inicialização,
+// transformando a verificação de O(N) para O(1) sem alocações em tempo de requisição.
 func CORSMiddleware() gin.HandlerFunc {
 	allowedOriginsEnv := os.Getenv("CORS_ALLOWED_ORIGINS")
 	var allowedOrigins []string
@@ -125,16 +130,24 @@ func CORSMiddleware() gin.HandlerFunc {
 		}
 	}
 
+	originsMap := make(map[string]struct{}, len(allowedOrigins))
+	allowAll := false
+	for _, o := range allowedOrigins {
+		if o == "*" {
+			allowAll = true
+		}
+		originsMap[strings.ToLower(o)] = struct{}{}
+	}
+
 	return func(c *gin.Context) {
 		origin := c.GetHeader("Origin")
 		isAllowed := false
 
 		if origin != "" {
-			for _, o := range allowedOrigins {
-				if strings.EqualFold(o, origin) || o == "*" {
-					isAllowed = true
-					break
-				}
+			if allowAll {
+				isAllowed = true
+			} else {
+				_, isAllowed = originsMap[strings.ToLower(origin)]
 			}
 		}
 
@@ -155,21 +168,23 @@ func CORSMiddleware() gin.HandlerFunc {
 	}
 }
 
-// --- Rate Limiting In-Memory com golang.org/x/time/rate ---
+// --- Rate Limiting In-Memory Otimizado com golang.org/x/time/rate ---
 
 type clientLimiter struct {
 	limiter  *rate.Limiter
-	lastSeen time.Time
+	lastSeen atomic.Int64 // timestamp UnixNano para atualização sem lock exclusivo
 }
 
 type IPRateLimiter struct {
-	mu      sync.Mutex
+	mu      sync.RWMutex
 	clients map[string]*clientLimiter
 	r       rate.Limit
 	b       int
+	stopCh  chan struct{}
 }
 
-// NewIPRateLimiter cria um limitador por IP
+// NewIPRateLimiter cria um limitador por IP com RWMutex de baixa contenção e
+// rotina de compactação de map que evita vazamento de buckets ("map never shrinks").
 // r: taxa de requisições por segundo permitidas
 // b: burst (capacidade máxima do bucket)
 func NewIPRateLimiter(r rate.Limit, b int) *IPRateLimiter {
@@ -177,38 +192,83 @@ func NewIPRateLimiter(r rate.Limit, b int) *IPRateLimiter {
 		clients: make(map[string]*clientLimiter),
 		r:       r,
 		b:       b,
+		stopCh:  make(chan struct{}),
 	}
 
-	// Limpeza periódica de IPs inativos a cada 5 minutos
+	// Limpeza e compactação periódica a cada 5 minutos
 	go func() {
+		ticker := time.NewTicker(5 * time.Minute)
+		defer ticker.Stop()
 		for {
-			time.Sleep(5 * time.Minute)
-			limiter.mu.Lock()
-			for ip, client := range limiter.clients {
-				if time.Since(client.lastSeen) > 10*time.Minute {
-					delete(limiter.clients, ip)
+			select {
+			case <-limiter.stopCh:
+				return
+			case <-ticker.C:
+				limiter.mu.Lock()
+				now := time.Now().UnixNano()
+				tenMinutesAgo := now - int64(10*time.Minute)
+
+				activeCount := 0
+				for _, client := range limiter.clients {
+					if client.lastSeen.Load() > tenMinutesAgo {
+						activeCount++
+					}
 				}
+
+				// Reconstrói o mapa com o tamanho exato dos clientes ativos para liberar buckets antigos para o GC
+				newClients := make(map[string]*clientLimiter, activeCount)
+				for ip, client := range limiter.clients {
+					if client.lastSeen.Load() > tenMinutesAgo {
+						newClients[ip] = client
+					}
+				}
+				limiter.clients = newClients
+				limiter.mu.Unlock()
 			}
-			limiter.mu.Unlock()
 		}
 	}()
 
 	return limiter
 }
 
+// Close finaliza a goroutine de limpeza do rate limiter
+func (i *IPRateLimiter) Close() {
+	select {
+	case <-i.stopCh:
+	default:
+		close(i.stopCh)
+	}
+}
+
+// getLimiter recupera ou instancia um limitador para o IP informado.
+// OTIMIZAÇÃO: RLock concorrente no fast-path e lastSeen atualizado via atomic.Int64.
 func (i *IPRateLimiter) getLimiter(ip string) *rate.Limiter {
+	now := time.Now().UnixNano()
+
+	// Fast path: RLock concorrente sem contenção entre clientes já registrados
+	i.mu.RLock()
+	client, exists := i.clients[ip]
+	i.mu.RUnlock()
+
+	if exists {
+		client.lastSeen.Store(now)
+		return client.limiter
+	}
+
+	// Slow path: Lock exclusivo apenas para novos IPs
 	i.mu.Lock()
 	defer i.mu.Unlock()
 
-	client, exists := i.clients[ip]
-	if !exists {
-		l := rate.NewLimiter(i.r, i.b)
-		i.clients[ip] = &clientLimiter{limiter: l, lastSeen: time.Now()}
-		return l
+	if client, exists = i.clients[ip]; exists {
+		client.lastSeen.Store(now)
+		return client.limiter
 	}
 
-	client.lastSeen = time.Now()
-	return client.limiter
+	l := rate.NewLimiter(i.r, i.b)
+	c := &clientLimiter{limiter: l}
+	c.lastSeen.Store(now)
+	i.clients[ip] = c
+	return l
 }
 
 // RateLimitMiddleware cria middleware para limitar requisições de acordo com a taxa informada

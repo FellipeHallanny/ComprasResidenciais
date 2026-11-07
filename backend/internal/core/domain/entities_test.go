@@ -130,3 +130,12 @@ func TestValidateFiscalKey(t *testing.T) {
 		t.Errorf("expected invalidMonth to be rejected")
 	}
 }
+
+func BenchmarkValidateFiscalKey(b *testing.B) {
+	key := "3524 0100 0000 0000 0000 6500 1000 0000 0110 0000 0018"
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = domain.ValidateFiscalKey(key)
+	}
+}
